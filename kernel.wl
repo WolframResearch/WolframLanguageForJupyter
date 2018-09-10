@@ -39,15 +39,17 @@ doText[expr_] := Module[{pObjects},
    	];
 ];
 
-jupEval[expr_] := Module[{$oldMessages, stream, msgs, eval},
+jupEval[expr_] := Module[{$oldMessages, stream, msgs, eval, evalExpr},
 	eval = Association[];
 	$oldMessages = $Messages;
 	stream = OpenWrite[];
+	Unprotect[$MessageList]; $MessageList = {}; Protect[$MessageList];
 	$Messages = Append[$Messages, stream];
-	AssociateTo[eval, "res" -> expr];
-	msgs = Import[stream[[1]], "String"];
+	evalExpr = expr;
 	$Messages = $oldMessages;
+	msgs = Import[stream[[1]], "String"];
 	Close[stream];
+	AssociateTo[eval, "res" -> evalExpr];
 	AssociateTo[eval, "msgs" -> msgs];
 	Return[eval];
 ];
@@ -190,7 +192,7 @@ While[
 			$msgs = $jupResEval["msgs"];
 			If[FailureQ[$jupResEval],
 				$res=$Failed;
-				$msgs="";
+				$msgs=jupEval[ToExpression[frameAssoc["content"]["code"], InputForm]]["msgs"];
 			];
 
 			If[TrueQ[InteractQ[ToExpression[frameAssoc["content"]["code"], InputForm, Hold]]] && $CloudConnected,
@@ -211,8 +213,34 @@ While[
 										"Compact" -> True
 									];
 				,
-				If[StringLength[$msgs] == 0 && doText[$res],
-					ioPubReplyContent = ExportString[Association["execution_count" -> executionCount, "data" -> {"text/plain" -> ToString[$res]}, "metadata" -> {}], "JSON", "Compact" -> True];,
+				If[doText[$res],
+					ioPubReplyContent = ExportString[
+						Association[
+							"execution_count" -> executionCount, 
+							"data" -> {"text/html" -> StringJoin[
+														"<div>",
+														If[StringLength[$msgs] == 0,
+															{},
+															{
+																"<pre style=\"",
+																StringJoin[{"&#",ToString[#1], ";"} & /@ ToCharacterCode["color:red; font-family: \"Courier New\",Courier,monospace;"]], 
+																"\">",
+																StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode[$msgs]],
+																"</pre>"
+															}
+														],
+														"<pre style=\"",
+														StringJoin[{"&#",ToString[#1], ";"} & /@ ToCharacterCode["font-family: \"Courier New\",Courier,monospace;"]], 
+														"\">",
+														StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode[ToString[$res]]],
+														"</pre></div>"
+													]
+										},
+							"metadata" -> {}
+						],
+						"JSON",
+						"Compact" -> True
+					];,
 					ioPubReplyContent = ExportString[
 						Association[
 							"execution_count" -> executionCount,
@@ -221,9 +249,11 @@ While[
 														Sequence @@ If[StringLength[$msgs] == 0,
 															{},
 															{
-																"<img alt=\"\" src=\"data:image/png;base64,", 
-																BaseEncode[ExportByteArray[Rasterize[Style[$msgs, Darker[Red]]], "PNG"]],
-																"\">"
+																"<pre style=\"",
+																StringJoin[{"&#",ToString[#1], ";"} & /@ ToCharacterCode["color:red; font-family: \"Courier New\",Courier,monospace;"]], 
+																"\">",
+																StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode[$msgs]],
+																"</pre>"
 															}
 														],
 														"<img alt=\"Output\" src=\"data:image/png;base64,",
