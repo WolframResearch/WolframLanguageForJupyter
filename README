@@ -1,18 +1,29 @@
-This is a wrapper of the Wolfram Kernel for the Jupyter Notebook. The Jupyter Notebook and this wrapper communicate with the ZMQ protocol.
+# Wolfram Language kernel for Jupyter notebooks
 
-Installation:
+Developer: Chris Cooley
 
-Just run ./addKernel.sh (in the usual Unix command line, or mingw's Git Bash on Windows) in the root directory, as below.
+Jupyter provides a protocol (ZMQ) to connect their notebooks to various languages. This project defines a Wolfram Language kernel which can be used in Jupyter notebooks.
 
-./addKernel.sh "/path/to/WolframKernel"
 
-This will add the wrapper to Jupyter's internal database of kernels, allowing the "Wolfram Language" to be selected at the Jupyter Notebook's startup. If the location of WolframKernel changes, you will have to re-run the above.
+# Installation
+
+Run the following command in a terminal:
+  
+    ./addKernel.sh "/path/to/WolframKernel"
+
+This adds the Wolfram Language kernel to Jupyter's database of kernels and allow you to select "Wolfram Language" from the Jupyter notebook interface.
+
+To check the list of Jupyter kernels, run the following commands:
+
+    jupyter kernelspec list
+
+ the wrapper to Jupyter's internal database of kernels, allowing the "Wolfram Language" to be selected at the Jupyter Notebook's startup. If the location of WolframKernel changes, you will have to re-run the above.
 
 Then run the following in the root directory.
 
-jupyter notebook
+    jupyter notebook
 
-Usage:
+# Usage
 
 Once the "Wolfram Language" has been selected, and the wrapper has finished starting up, you should see an empty In[]: cell. Just type your input into that cell, as you would for the normal Mathematica Front End, and press Shift-Enter.
 
