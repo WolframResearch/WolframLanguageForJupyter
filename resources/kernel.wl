@@ -3,16 +3,16 @@ Get["ZeroMQLink`"];
 (* START: Cloud Interaction Functions *)
 
 InteractQ[expr_] := MatchQ[expr, Hold[Interact[___]]];
-Uninteract[Interact[expr___]] ^:= JupyterKernel`Private`jupEval[expr];
+Uninteract[Interact[expr___]] ^:= WolframForJupyter`Private`jupEval[expr];
 
 SetAttributes[Interact, HoldAll];
-Uninteract[expr___] := JupyterKernel`Private`jupEval[expr];
+Uninteract[expr___] := WolframForJupyter`Private`jupEval[expr];
 
 SetAttributes[Uninteract, HoldAll];
 
 (* END: Cloud Interaction Functions *)
 
-Begin["JupyterKernel`Private`"];
+Begin["WolframForJupyter`Private`"];
 
 (* START: Evaluation Helper Functions *)
 
@@ -72,6 +72,58 @@ sendFrame[socket_, frame_Association] := Module[{},
 	];
 ];
 
+(* START: Cryptographic Helper Functions *)
+
+(* Adapted from wikipedia article on HMAC's definition *)
+
+hmac[key_String, message_String] :=
+  Module[
+   {
+    method, blockSize, outputSize,
+    baKey, baMessage,
+    baKeyPrime,
+    keyPrime,
+    baOPadded, baIPadded
+    },
+   
+   method = "SHA256";
+   blockSize = 64;
+   outputSize = 32;
+   
+   baKey = StringToByteArray[key];
+   baMessage = StringToByteArray[message];
+   
+   If[Length[baKey] > blockSize,
+    baKeyPrime = Hash[baKey, method, "ByteArray"];
+    ];
+   
+   If[Length[baKey] < blockSize,
+    baKeyPrime = Join[
+       baKey,
+       ByteArray[
+        Table[0, {blockSize - Length[baKey]}]
+        ]
+       ];
+    ];
+   
+   keyPrime = Normal[baKeyPrime];
+   
+   baOPadded = ByteArray[BitXor[#1, 92] & /@ Normal[keyPrime]];
+   baIPadded = ByteArray[BitXor[#1, 54] & /@ Normal[keyPrime]];
+   
+   Hash[Join[
+     baOPadded,
+     Hash[
+      Join[
+       baIPadded,
+       baMessage
+       ], method, "ByteArray"
+      ]
+     ], method, "HexString"]
+   ];
+
+(* END: Cryptographic Helper Functions *)
+
 getFrameAssoc[frame_Association, replyType_String, replyContent_String, branchOff:(True|False)] := Module[{res = Association[], header, content},
 	header = frame["header"];
 	content = frame["content"];
@@ -83,11 +135,23 @@ getFrameAssoc[frame_Association, replyType_String, replyContent_String, branchOf
 			Association[
 				"uuid" -> res["header"]["session"],
 				"idsmsg" -> "<IDS|MSG>",
-				"signature" -> "sig",
 				"header" -> ExportString[Append[res["header"], {"date" -> DateString["ISODateTime"], "msg_type" -> replyType, "msg_id" -> StringInsert[StringReplace[CreateUUID[], "-" -> ""], "-", 9]}], "JSON", "Compact" -> True],
 				"pheader" -> If[branchOff, "{}", header],
 				"metadata" -> "{}",
 				"content" -> replyContent
+			]
+	];
+	AssociateTo[
+		res["replyMsg"],
+		"signature" -> 
+			hmac[
+				keyString, 
+				StringJoin[
+					res["replyMsg"]["header"],
+					res["replyMsg"]["pheader"],
+					res["replyMsg"]["metadata"],
+					res["replyMsg"]["content"]
+				]
 			]
 	];
 
@@ -98,7 +162,7 @@ getFrameAssoc[baFrame_ByteArray, replyType_String, replyContent_String, branchOf
 	frameStr = Quiet[ByteArrayToString[baFrame]];
 
 	{header, pheader, metadata, content} = First[StringCases[frameStr,
-			"<IDS|MSG>" ~~ "{" ~~ json1___ ~~ "}" ~~ "{" ~~ json2___ ~~ "}" ~~ "{" ~~ json3___ ~~ "}" ~~ "{" ~~ json4___ ~~ "}" ~~ EndOfString :> 
+			"<IDS|MSG>" ~~ ___ ~~ "{" ~~ json1___ ~~ "}" ~~ "{" ~~ json2___ ~~ "}" ~~ "{" ~~ json3___ ~~ "}" ~~ "{" ~~ json4___ ~~ "}" ~~ EndOfString :> 
 				(StringJoin["{",#1,"}"] &) /@ {json1,json2,json3,json4}
 		]];
 
@@ -113,6 +177,8 @@ getFrameAssoc[baFrame_ByteArray, replyType_String, replyContent_String, branchOf
 ];
 
 connectionAssoc = ToString /@ Association[Import[$CommandLine[[4]], "JSON"]];
+
+keyString = connectionAssoc["key"];
 
 baseString = StringJoin[connectionAssoc["transport"], "://", connectionAssoc["ip"], ":"];
 

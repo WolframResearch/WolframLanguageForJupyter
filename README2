@@ -1,0 +1,34 @@
+This is a wrapper of the Wolfram Kernel for the Jupyter Notebook. The Jupyter Notebook and this wrapper communicate with the ZMQ protocol.
+
+Installation:
+
+This project requires the execution a script for installation.
+
+For Unix-type operating systems, execute the following in the project directory.
+
+	./kernel.sh add "/absolute/path/to/Mathematica/binary/directory/WolframKernel"
+
+For Windows, execute the following in the project directory.
+
+	kernel.bat add "drive:\absolute\path\to\Mathematica\binary\directory\wolfram.exe"
+
+This will add the wrapper to Jupyter's internal database of kernels, allowing the "Wolfram Language" to be selected at the Jupyter Notebook's start-up. If the location of Mathematica changes, you will have to re-run the above.
+
+NOTE: Extra configuration options are available for kernel.sh/kernel.bat. When evaluated with no extra arguments, kernel.sh/kernel.bat displays a help message with these options.
+
+Start-up:
+
+To start up, just run the below in your command line:
+
+	jupyter notebook
+
+Then, you should select New > "Wolfram Language" from the landing page, and wait for the "kernel" (our wrapper of the Mathematica kernel) to finish starting up.
+
+Usage:
+
+After the above, an empty In[]: cell should appear. Just type your input into that cell, as you would for the normal Mathematica Front End, and press Shift-Enter. Any errors that occur during the evaluation of the input will be displayed.
+
+If the wrapper can determine for sure that the output can be properly represented as text, it will do so. If not, the output will be in the form of an image.
+
+Wrap your input with Interact[] to upload the output to the cloud, and embed that cloud object in the Jupyter Notebook.
+NOTE: This requires that you are signed in to the cloud within the Wolfram kernel.
