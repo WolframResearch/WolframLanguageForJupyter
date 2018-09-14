@@ -1,27 +1,40 @@
 # Wolfram Language kernel for Jupyter notebooks
 
-Developer: Chris Cooley
-
 Jupyter provides a protocol (ZMQ) to connect their notebooks to various languages. This project defines a Wolfram Language kernel which can be used in Jupyter notebooks.
 
 
 # Installation
 
-Run the following command in a terminal:
+The below adds the Wolfram Language kernel to Jupyter's "database of kernels" and allow you to select "Wolfram Language" from the Jupyter notebook interface.
+
+Run the following command in a terminal from the project root directory.
   
-    ./addKernel.sh "/path/to/WolframKernel"
+    wolframscript -file install.wls add
 
-This adds the Wolfram Language kernel to Jupyter's database of kernels and allow you to select "Wolfram Language" from the Jupyter notebook interface.
-
-To check the list of Jupyter kernels, run the following commands:
-
-    jupyter kernelspec list
-
- the wrapper to Jupyter's internal database of kernels, allowing the "Wolfram Language" to be selected at the Jupyter Notebook's startup. If the location of WolframKernel changes, you will have to re-run the above.
-
-Then run the following in the root directory.
+Then, run the following.
 
     jupyter notebook
+
+**NOTE: If the location of Mathematica changes, you will have to re-run `install.wls`.**
+
+**NOTE: `install.wls` automatically checks Jupyter's database of kernels to see if the Wolfram Language kernel was added, and gives an error if it was not.**
+
+**NOTE: Run the below for more configuration options for `install.wls`.**
+
+	wolframscript -file install.wls help
+
+# Building
+
+The below creates a paclet that, when installed within Mathematica, creates a Mathematica symbol that allows the user to add the Wolfram Language kernel to Jupyter's database of kernels and select "Wolfram Language" from the Jupyter notebook interface.
+
+Run the following command in a terminal from the project root directory:
+
+	wolframscript -file build.wls
+
+Then, run the following in Mathematica to see how to evaluate the new command.
+
+	?AddKernelToJupyter
+	?RemoveKernelFromJupyter
 
 # Usage
 
@@ -32,4 +45,5 @@ If the wrapper can determine for sure that the output can be properly represente
 Any errors that occur during the evaluation of the input will be displayed.
 
 Wrap your input with Interact[] to upload the output to the cloud, and embed that cloud object in the Jupyter Notebook.
-NOTE: This requires that you are signed in to the cloud within the Wolfram Kernel.
+
+**NOTE: This requires that you are signed in to the cloud within the Wolfram Kernel.**
