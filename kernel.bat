@@ -47,4 +47,4 @@ IF %count% == 3 (
 
 ECHO "kernel.sh: Incorrect number of arguments provided. 1 or 2 expected. See usage below."
 ECHO "kernel.sh: "
-ECHO "$helpMessage"
+ECHO "%helpMessage%"
