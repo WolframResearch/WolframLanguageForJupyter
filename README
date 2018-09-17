@@ -39,7 +39,7 @@ To install the paclet, run the following (in Mathematica).
 
 After the paclet has been installed, all that needs to be done is the following, once every kernel session.
 
-	<<WolframForJupyter`
+	<<WolframLanguageForJupyter`
 
 Then, run the below in Mathematica to see how to evaluate the new command.
 

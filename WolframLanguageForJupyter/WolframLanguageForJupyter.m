@@ -1,4 +1,4 @@
-BeginPackage["WolframForJupyter`"];
+BeginPackage["WolframLanguageForJupyter`"];
 
 AddKernelToJupyter::usage = "AddKernelToJupyter[] attempts to add the Wolfram kernel to the Jupyter installation on Environment[\"PATH\"].
 AddKernelToJupyter[\"\!\(\*

@@ -1,16 +1,16 @@
-Begin["WolframForJupyter`Private`"];
+Begin["WolframLanguageForJupyter`Private`"];
 
 notfound = "install.wls: Jupyter installation on Environment[\"PATH\"] not found.";
 isdir = "install.wls: Provided Jupyter binary path is a directory. Please provide the path to the Jupyter binary."
 nobin = "install.wls: Provided Jupyter binary path does not exist.";
 notadded = "install.wls: An error has occurred. There is still no Wolfram kernel in \"jupyter kernelspec list.\"";
 notremoved = "install.wls: An error has occurred. There is a Wolfram kernel still in \"jupyter kernelspec list.\"";
-nopaclet = "install.wls: WolframForJupyter paclet source not detected. Are you running the script in the root project directory?";
+nopaclet = "install.wls: WolframLanguageForJupyter paclet source not detected. Are you running the script in the root project directory?";
 
 (* globalKernelUUID = "11a8cf20-da0e-4976-83e5-27579d6360b3"; *)
 globalKernelUUID = Hash[$InstallationDirectory, "SHA", "HexString"];
 
-kernelScript = FileNameJoin[{projectHome, "WolframForJupyter", "Resources", "kernel.wl"}];
+kernelScript = FileNameJoin[{projectHome, "WolframLanguageForJupyter", "Resources", "kernel.wl"}];
 projectHome = Directory[];
 If[
 	!FileExistsQ[kernelScript],

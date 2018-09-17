@@ -3,16 +3,16 @@ Get["ZeroMQLink`"];
 (* START: Cloud Interaction Functions *)
 
 InteractQ[expr_] := MatchQ[expr, Hold[Interact[___]]];
-Uninteract[Interact[expr___]] ^:= WolframForJupyter`Private`jupEval[expr];
+Uninteract[Interact[expr___]] ^:= WolframLanguageForJupyter`Private`jupEval[expr];
 
 SetAttributes[Interact, HoldAll];
-Uninteract[expr___] := WolframForJupyter`Private`jupEval[expr];
+Uninteract[expr___] := WolframLanguageForJupyter`Private`jupEval[expr];
 
 SetAttributes[Uninteract, HoldAll];
 
 (* END: Cloud Interaction Functions *)
 
-Begin["WolframForJupyter`Private`"];
+Begin["WolframLanguageForJupyter`Private`"];
 
 (* START: Evaluation Helper Functions *)
 

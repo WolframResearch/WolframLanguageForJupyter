@@ -5,7 +5,7 @@
 (* created Sept. 14 2018 *)
 
 Paclet[
-    Name -> "WolframForJupyter",
+    Name -> "WolframLanguageForJupyter",
     Version -> "0.0.1",
     MathematicaVersion -> "11.2+",
     Extensions -> {
