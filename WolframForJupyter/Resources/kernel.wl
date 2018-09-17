@@ -18,25 +18,35 @@ Begin["WolframForJupyter`Private`"];
 
 doText[expr_] := Module[{pObjects}, 
 	pObjects = 
-		KeyDrop[GroupBy[
-			DeleteCases[
-				Cases[
+		GroupBy[
+			Complement[
+				Quiet[Cases[
 					expr, 
-					_?AtomQ, 
+					elem_ /; (Depth[elem] == 1), 
 					{0, Infinity}, 
 					Heads -> True
-				],
-				List | Association
+				]],
+				{List, Association}
 			],
 			Head
-		], {Integer, String, Real}];
+		];
+
 	If[
-		Keys[pObjects] === {Symbol}, 
-   		Return[
-   			AllTrue[pObjects[Symbol], ToString[""] === "Null" &]
-   		];, 
-   		Return[Length[pObjects] == 0];
+		ContainsOnly[Keys[pObjects], {Integer, Real, String}],
+		Return[True];
    	];
+
+	If[
+		ContainsOnly[Keys[pObjects], {Integer, Real, String, Symbol}],
+   		Return[
+   			AllTrue[
+   				pObjects[Symbol], 
+   				(ToString[Definition[#1]] === "Null") &
+   			]
+   		];
+   	];
+
+   	Return[False];
 ];
 
 jupEval[expr_] := Module[{$oldMessages, stream, msgs, eval, evalExpr},
@@ -44,7 +54,7 @@ jupEval[expr_] := Module[{$oldMessages, stream, msgs, eval, evalExpr},
 	$oldMessages = $Messages;
 	stream = OpenWrite[];
 	Unprotect[$MessageList]; $MessageList = {}; Protect[$MessageList];
-	$Messages = Append[$Messages, stream];
+	$Messages = {stream};
 	evalExpr = expr;
 	$Messages = $oldMessages;
 	msgs = Import[stream[[1]], "String"];
@@ -59,13 +69,13 @@ SetAttributes[jupEval, HoldAll];
 
 sendFrame[socket_, frame_Association] := Module[{},
 
-	ZMQSocketWriteMessage[
+	ZeroMQLink`ZMQSocketWriteMessage[
 		socket, 
 		StringToByteArray[#1],
 		"Multipart" -> True
 	]& /@ Lookup[frame, {"uuid", "idsmsg", "signature", "header", "pheader", "metadata"}];
 
-	ZMQSocketWriteMessage[
+	ZeroMQLink`ZMQSocketWriteMessage[
 		socket, 
 		StringToByteArray[frame["content"]],
 		"Multipart" -> False
@@ -137,7 +147,11 @@ getFrameAssoc[frame_Association, replyType_String, replyContent_String, branchOf
 				"idsmsg" -> "<IDS|MSG>",
 				"header" -> ExportString[Append[res["header"], {"date" -> DateString["ISODateTime"], "msg_type" -> replyType, "msg_id" -> StringInsert[StringReplace[CreateUUID[], "-" -> ""], "-", 9]}], "JSON", "Compact" -> True],
 				"pheader" -> If[branchOff, "{}", header],
-				"metadata" -> "{}",
+				"metadata" -> ExportString[
+								{"text/html" -> {}},
+								"JSON",
+								"Compact" -> True
+							],
 				"content" -> replyContent
 			]
 	];
@@ -206,7 +220,7 @@ heldLocalSubmit = Replace[Hold[LocalSubmit[
 			FailureQ[heartbeatRecv],
 			Continue[];
 		];
-		ZMQSocketWriteMessage[
+		ZeroMQLink`ZMQSocketWriteMessage[
 			heartbeatSocket, 
 			heartbeatRecv,
 			"Multipart" -> False
@@ -243,7 +257,7 @@ While[
 			frameAssoc["header"]["msg_type"], 
 			"kernel_info_request",
 			replyMsgType = "kernel_info_reply";
-			replyContent = "{\"protocol_version\": \"5.3.0\",\"implementation\": \"WL\"}";,
+			replyContent = "{\"protocol_version\":\"5.3.0\",\"implementation\":\"WL\"}";,
 			"is_complete_request",
 			(* Add syntax-Q checking *)
 			replyMsgType = "is_complete_reply";
@@ -273,7 +287,7 @@ While[
 																		"</div>"
 																	]
 														},
-											"metadata" -> {}
+											"metadata" -> {"text/html" -> {}}
 										],
 										"JSON",
 										"Compact" -> True
@@ -302,7 +316,7 @@ While[
 														"</pre></div>"
 													]
 										},
-							"metadata" -> {}
+							"metadata" -> {"text/html" -> {}}
 						],
 						"JSON",
 						"Compact" -> True
@@ -332,7 +346,7 @@ While[
 														"\"></div>"
 													]
 										},
-							"metadata" -> {}
+							"metadata" -> {"text/html" -> {}}
 						],
 						"JSON",
 						"Compact" -> True

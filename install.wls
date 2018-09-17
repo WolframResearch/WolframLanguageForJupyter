@@ -5,10 +5,19 @@ isdir = "install.wls: Provided Jupyter binary path is a directory. Please provid
 nobin = "install.wls: Provided Jupyter binary path does not exist.";
 notadded = "install.wls: An error has occurred. There is still no Wolfram kernel in \"jupyter kernelspec list.\"";
 notremoved = "install.wls: An error has occurred. There is a Wolfram kernel still in \"jupyter kernelspec list.\"";
+nopaclet = "install.wls: WolframForJupyter paclet source not detected. Are you running the script in the root project directory?";
 
-globalKernelUUID = "11a8cf20-da0e-4976-83e5-27579d6360b3";
+(* globalKernelUUID = "11a8cf20-da0e-4976-83e5-27579d6360b3"; *)
+globalKernelUUID = Hash[$InstallationDirectory, "SHA", "HexString"];
 
+kernelScript = FileNameJoin[{projectHome, "WolframForJupyter", "Resources", "kernel.wl"}];
 projectHome = Directory[];
+If[
+	!FileExistsQ[kernelScript],
+	Print[nopaclet];
+	Quit[];
+];
+
 
 mathBin := (defineGlobalVars; mathBin);
 fileExt := (defineGlobalVars; fileExt);
@@ -31,9 +40,47 @@ defineGlobalVars :=
 		pathSeperator = ":";
 	];
 
+splitPath := StringSplit[Environment["PATH"], pathSeperator];
+
+attemptPathRegeneration[] := If[
+		$OperatingSystem === "MacOSX" && FileExistsQ["~/.profile"] && !DirectoryQ["~/.profile"],
+		Print["install.wls: Warning: Regenerating PATH ..."];
+		SetEnvironment[
+			"PATH" -> StringTrim[
+						RunProcess[
+							$SystemShell,
+							"StandardOutput",
+							StringJoin[Import["~/.profile", "String"], "\necho $PATH"],
+							ProcessEnvironment -> {}
+						], 
+						"\n"
+					]
+		];
+	];
+
+If[
+	FailureQ[RunProcess[$SystemShell, All, ""]],
+	If[
+		MemberQ[$CommandLine, "-script"],
+		Print["install.wls: Please use -file instead of -script in WolframScript."];,
+		Print["install.wls: An unknown error has occurred."];
+		attemptPathRegeneration[];
+	];
+	Quit[];
+];
+
+defineGlobalVars;
+If[
+	Length[splitPath] == 1,
+	Print["install.wls: Warning: This script has encountered a very small PATH environment variable."];
+	Print["install.wls: Warning: This can occur due to a possible WolframScript bug."];
+	attemptPathRegeneration[];
+];
+
+
 findJupyerPath[] := 
 	SelectFirst[
-		StringSplit[Environment["PATH"], pathSeperator],
+		splitPath,
 		FileExistsQ[FileNameJoin[{#1, StringJoin["jupyter", fileExt]}]]&
 	];
 
@@ -58,10 +105,19 @@ removeKernelFromJupyter[] :=
 	];
 
 getKernelspecAssoc[jupyterPath_String] := 
-	Replace[
-		ImportString[RunProcess[{jupyterPath, "kernelspec", "list", "--json"}, "StandardOutput"], "JSON"],
-		part_List /; AllTrue[part, Head[#1] === Rule &] -> Association @ part, 
-		{0, Infinity}
+	Module[{json},
+		json = Quiet[ImportString[RunProcess[{jupyterPath, "kernelspec", "list", "--json"}, "StandardOutput"], "JSON"]];
+		If[
+			FailureQ[json],
+			Return[Association[]];
+		];
+		Return[
+			Replace[
+				json,
+				part_List /; AllTrue[part, Head[#1] === Rule &] -> Association @ part, 
+				{0, Infinity}
+			]
+		];
 	];
 
 addKernelToJupyter[jupyterPath_String] := 
@@ -87,7 +143,7 @@ addKernelToJupyter[jupyterPath_String] :=
 		Export[
 			FileNameJoin[{tempDir, "kernel.json"}], 
 			Association[
-				"argv" -> {mathBin, "-script", FileNameJoin[{projectHome, "WolframForJupyter", "Resources", "kernel.wl"}], "{connection_file}"},
+				"argv" -> {mathBin, "-script", kernelScript, "{connection_file}"},
 				"display_name" -> "Wolfram Language",
 				"language" -> "Wolfram Language"
 			]
@@ -103,7 +159,11 @@ addKernelToJupyter[jupyterPath_String] :=
 		DeleteDirectory[DirectoryName[tempDir], DeleteContents -> True];
 
 		kernelspecAssoc = getKernelspecAssoc[jupyterPath];
-		kernelspecs = Keys[kernelspecAssoc["kernelspecs"]];
+		If[
+			KeyExistsQ[kernelspecAssoc, "kernelspecs"],
+			kernelspecs = Keys[kernelspecAssoc["kernelspecs"]];,
+			kernelspecs = {};
+		];
 
 		If[!MemberQ[
 				kernelspecs,

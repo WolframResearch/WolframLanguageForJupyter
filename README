@@ -27,11 +27,21 @@ Then, run the following.
 
 The below creates a paclet that, when installed within Mathematica, creates a Mathematica symbol that allows the user to add the Wolfram Language kernel to Jupyter's database of kernels and select "Wolfram Language" from the Jupyter notebook interface.
 
-Run the following command in a terminal from the project root directory:
+Run the following command in a terminal from the project root directory.
 
 	wolframscript -file build.wls
 
-Then, run the following in Mathematica to see how to evaluate the new command.
+## Steps in Mathematica
+
+To install the paclet, run the following (in Mathematica).
+
+	PacletInstall["<location of paclet>"]
+
+After the paclet has been installed, all that needs to be done is the following, once every kernel session.
+
+	<<WolframForJupyter`
+
+Then, run the below in Mathematica to see how to evaluate the new command.
 
 	?AddKernelToJupyter
 	?RemoveKernelFromJupyter

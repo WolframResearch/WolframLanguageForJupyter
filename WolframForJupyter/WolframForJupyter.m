@@ -20,7 +20,8 @@ RemoveKernelFromJupyter::notremoved = "An error has occurred. There is a Wolfram
 
 Begin["`Private`"];
 
-globalKernelUUID = "11a8cf20-da0e-4976-83e5-27579d6360b3";
+(* globalKernelUUID = "11a8cf20-da0e-4976-83e5-27579d6360b3"; *)
+globalKernelUUID = Hash[$InstallationDirectory, "SHA", "HexString"];
 
 pacletHome = DirectoryName[$InputFileName];
 
