@@ -1,3 +1,6 @@
+(* Do not output messages to the jupyter notebook invocation: *)
+$Messages = {};
+
 Get["ZeroMQLink`"];
 
 (* START: Cloud Interaction Functions *)
