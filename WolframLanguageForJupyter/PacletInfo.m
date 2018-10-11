@@ -9,7 +9,7 @@ Paclet[
     Version -> "0.0.1",
     MathematicaVersion -> "11.2+",
     Extensions -> {
-        {"Kernel", Context -> {"CodeAnalysis`"}},
+        {"Kernel", Context -> {"WolframLanguageForJupyter`"}},
         {"Documentation", Language -> "English"}
     }
 ]
