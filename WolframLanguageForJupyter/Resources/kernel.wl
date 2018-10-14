@@ -74,9 +74,15 @@ sendFrame[socket_, frame_Association] := Module[{},
 
 	ZeroMQLink`ZMQSocketWriteMessage[
 		socket, 
+		frame["ident"],
+		"Multipart" -> True
+	];
+
+	ZeroMQLink`ZMQSocketWriteMessage[
+		socket, 
 		StringToByteArray[#1],
 		"Multipart" -> True
-	]& /@ Lookup[frame, {"uuid", "idsmsg", "signature", "header", "pheader", "metadata"}];
+	]& /@ Lookup[frame, {"idsmsg", "signature", "header", "pheader", "metadata"}];
 
 	ZeroMQLink`ZMQSocketWriteMessage[
 		socket, 
@@ -146,7 +152,7 @@ getFrameAssoc[frame_Association, replyType_String, replyContent_String, branchOf
 		res, 
 		"replyMsg" -> 
 			Association[
-				"uuid" -> res["header"]["session"],
+				"ident" -> If[KeyExistsQ[frame, "ident"], frame["ident"], ByteArray[{0, 0, 0, 0, 0}]],
 				"idsmsg" -> "<IDS|MSG>",
 				"header" -> ExportString[Append[res["header"], {"date" -> DateString["ISODateTime"], "msg_type" -> replyType, "msg_id" -> StringInsert[StringReplace[CreateUUID[], "-" -> ""], "-", 9]}], "JSON", "Compact" -> True],
 				"pheader" -> If[branchOff, "{}", header],
@@ -175,17 +181,17 @@ getFrameAssoc[frame_Association, replyType_String, replyContent_String, branchOf
 	Return[res];
 ];
 
-getFrameAssoc[baFrame_ByteArray, replyType_String, replyContent_String, branchOff:(True|False)] := Module[{frameStr, res = Association[], header, pheader, metadata, content},
+getFrameAssoc[baFrame_ByteArray, replyType_String, replyContent_String, branchOff:(True|False)] := Module[{frameStr, res = Association[], identLen, header, pheader, metadata, content},
 	frameStr = Quiet[ByteArrayToString[baFrame]];
 
-	{header, pheader, metadata, content} = First[StringCases[frameStr,
-			"<IDS|MSG>" ~~ ___ ~~ "{" ~~ json1___ ~~ "}" ~~ "{" ~~ json2___ ~~ "}" ~~ "{" ~~ json3___ ~~ "}" ~~ "{" ~~ json4___ ~~ "}" ~~ EndOfString :> 
-				(StringJoin["{",#1,"}"] &) /@ {json1,json2,json3,json4}
+	{identLen, header, pheader, metadata, content} = First[StringCases[frameStr,
+			ident1___ ~~ "<IDS|MSG>" ~~ ___ ~~ "{" ~~ json1___ ~~ "}" ~~ "{" ~~ json2___ ~~ "}" ~~ "{" ~~ json3___ ~~ "}" ~~ "{" ~~ json4___ ~~ "}" ~~ EndOfString :> 
+				Prepend[(StringJoin["{",#1,"}"] &) /@ {json1,json2,json3,json4}, StringLength[ident1]]
 		]];
 
 	Return[
 		getFrameAssoc[
-			Association["header" -> header, "content" -> content],
+			Association["ident" -> baFrame[[;;identLen]], "header" -> header, "content" -> content],
 			replyType,
 			replyContent,
 			branchOff
