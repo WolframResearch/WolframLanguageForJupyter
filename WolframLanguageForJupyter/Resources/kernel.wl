@@ -199,6 +199,10 @@ getFrameAssoc[baFrame_ByteArray, replyType_String, replyContent_String, branchOf
 	];
 ];
 
+End[];
+
+PrependTo[$ContextPath, "WolframLanguageForJupyter`Private`"];
+
 connectionAssoc = ToString /@ Association[Import[$CommandLine[[4]], "JSON"]];
 
 keyString = connectionAssoc["key"];
@@ -392,5 +396,3 @@ While[
 		Continue[];
 	];
 ];
-
-End[];

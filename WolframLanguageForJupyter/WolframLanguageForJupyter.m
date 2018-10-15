@@ -1,18 +1,23 @@
 BeginPackage["WolframLanguageForJupyter`"];
 
-AddKernelToJupyter::usage = "AddKernelToJupyter[] attempts to add the Wolfram kernel to the Jupyter installation on Environment[\"PATH\"].
+(* AddKernelToJupyter::usage = "AddKernelToJupyter[] attempts to add the Wolfram kernel to the Jupyter installation on Environment[\"PATH\"].
 AddKernelToJupyter[\"\!\(\*
 StyleBox[\"path\", \"TI\"]\)\"] adds the Wolfram kernel to the location of the Jupyter binary at \!\(\*
-StyleBox[\"path\", \"TI\"]\).";
+StyleBox[\"path\", \"TI\"]\)."; *)
+AddKernelToJupyter::usage = "AddKernelToJupyter[] attempts to add the Wolfram kernel to the Jupyter installation on Environment[\"PATH\"].
+AddKernelToJupyter[\"path\"] adds the Wolfram kernel to the location of the Jupyter binary at path.
+AddKernelToJupyter[\"path\", \"kernel\"] adds the absolute Wolfram Language kernel binary path at kernel to the location of the Jupyter binary at path.";
 AddKernelToJupyter::notfound = "Jupyter installation on Environment[\"PATH\"] not found.";
-AddKernelToJupyter::isdir = "Provided path is a directory. Please provide the path to the Jupyter binary."
-AddKernelToJupyter::nobin = "Provided path does not exist.";
+AddKernelToJupyter::isdir = "Provided `1` binary path is a directory. Please provide the path to the `1` binary."
+AddKernelToJupyter::nobin = "Provided `1` binary path does not exist.";
 AddKernelToJupyter::notadded = "An error has occurred. There is still no Wolfram kernel in \"jupyter kernelspec list.\"";
 
-RemoveKernelFromJupyter::usage = "RemoveKernelFromJupyter[] attempts to remove any Wolfram kernels from the Jupyter installation on Environment[\"PATH\"].
+(* RemoveKernelFromJupyter::usage = "RemoveKernelFromJupyter[] attempts to remove any Wolfram kernels from the Jupyter installation on Environment[\"PATH\"].
 RemoveKernelFromJupyter[\"\!\(\*
 StyleBox[\"path\", \"TI\"]\)\"] removes any Wolfram kernels from the location of the Jupyter binary at \!\(\*
-StyleBox[\"path\", \"TI\"]\).";
+StyleBox[\"path\", \"TI\"]\)."; *)
+RemoveKernelFromJupyter::usage = "RemoveKernelFromJupyter[] attempts to remove any Wolfram kernels from the Jupyter installation on Environment[\"PATH\"].
+RemoveKernelFromJupyter[\"path\"] removes any Wolfram kernels from the location of the Jupyter binary at path.";
 RemoveKernelFromJupyter::notfound = AddKernelToJupyter::notfound;
 RemoveKernelFromJupyter::isdir = AddKernelToJupyter::isdir;
 RemoveKernelFromJupyter::nobin = AddKernelToJupyter::nobin;
@@ -21,7 +26,27 @@ RemoveKernelFromJupyter::notremoved = "An error has occurred. There is a Wolfram
 Begin["`Private`"];
 
 (* globalKernelUUID = "11a8cf20-da0e-4976-83e5-27579d6360b3"; *)
-globalKernelUUID = Hash[$InstallationDirectory, "SHA", "HexString"];
+hashedKernelUUID = Hash[$InstallationDirectory, "SHA", "HexString"];
+names = StringCases[$Version, name___ ~~ " for " ~~ ("Mac" | "Microsoft" | "Windows" | "Linux") -> name];
+If[Length[names] > 0, 
+	globalKernelUUID =
+		ToLowerCase[StringJoin[
+			"WolframLanguage-",
+			StringReplace[First[names], Whitespace -> "-"]
+		]];
+	displayName = 
+		StringJoin[
+			"Wolfram Language (",
+			Capitalize[
+				First[names],
+				"AllWords"
+			],
+			")"
+		];
+	,
+	globalKernelUUID = hashedKernelUUID;
+	displayName = "Wolfram Language";
+];
 
 pacletHome = DirectoryName[$InputFileName];
 
@@ -73,22 +98,83 @@ RemoveKernelFromJupyter[] :=
 	];
 
 getKernelspecAssoc[jupyterPath_String] := 
-	Replace[
-		ImportString[RunProcess[{jupyterPath, "kernelspec", "list", "--json"}, "StandardOutput"], "JSON"],
-		part_List /; AllTrue[part, Head[#1] === Rule &] -> Association @ part, 
-		{0, Infinity}
+	Module[{json},
+		json = Quiet[ImportString[RunProcess[{jupyterPath, "kernelspec", "list", "--json"}, "StandardOutput"], "JSON"]];
+		If[
+			FailureQ[json],
+			Return[Association[]];
+		];
+		Return[
+			Replace[
+				json,
+				part_List /; AllTrue[part, Head[#1] === Rule &] -> Association @ part, 
+				{0, Infinity}
+			]
+		];
 	];
 
-AddKernelToJupyter[jupyterPath_String] := 
-	Module[{baseDir, tempDir, exitCode, kernelspecAssoc, kernelspecs, kernelUUID},
+AddKernelToJupyter[jupyterPath_String] := AddKernelToJupyter[jupyterPath, mathBin];
+
+RemoveKernelFromJupyter[jupyterPath_String (*, kernelUUID_String *)] := 
+	Module[{exitCodeOld, exitCode, kernelspecAssoc, kernelspecs, oldEnv},
 		If[DirectoryQ[jupyterPath],
-			Message[AddKernelToJupyter::isdir];
+			Message[RemoveKernelFromJupyter::isdir, "Jupyter"];
 			Return[$Failed];
 		];
 		If[!FileExistsQ[jupyterPath],
-			Message[AddKernelToJupyter::nobin];
+			Message[RemoveKernelFromJupyter::nobin, "Jupyter"];
 			Return[$Failed];
 		];
+
+		oldEnv = Environment["PATH"];
+		SetEnvironment["PATH" -> StringJoin[Environment["PATH"], pathSeperator, DirectoryName[jupyterPath]]];
+
+		exitCodeOld = RunProcess[{jupyterPath, "kernelspec", "remove", "-f", hashedKernelUUID}, "ExitCode"];
+		exitCode = RunProcess[{jupyterPath, "kernelspec", "remove", "-f", globalKernelUUID}, "ExitCode"];
+		
+		kernelspecAssoc = getKernelspecAssoc[jupyterPath];
+		If[
+			KeyExistsQ[kernelspecAssoc, "kernelspecs"],
+			kernelspecs = Keys[kernelspecAssoc["kernelspecs"]];,
+			kernelspecs = {};
+		];		
+
+		If[MemberQ[
+				kernelspecs,
+				(* kernelUUID *)
+				globalKernelUUID
+			],
+			Message[RemoveKernelFromJupyter::notremoved];
+			Return[$Failed];
+		];
+
+		SetEnvironment["PATH" -> oldEnv];
+
+		(* Return[kernelUUID]; *)
+	];
+
+AddKernelToJupyter[jupyterPath_String, mathB_String] := 
+	Module[{baseDir, tempDir, exitCode, kernelspecAssoc, kernelspecs, kernelUUID, oldEnv},
+		If[DirectoryQ[jupyterPath],
+			Message[AddKernelToJupyter::isdir, "Jupyter"];
+			Return[$Failed];
+		];
+		If[!FileExistsQ[jupyterPath],
+			Message[AddKernelToJupyter::nobin, "Jupyter"];
+			Return[$Failed];
+		];
+
+		If[DirectoryQ[mathB],
+			Message[AddKernelToJupyter::isdir, "Wolfram Language kernel"];
+			Return[$Failed];
+		];
+		If[!FileExistsQ[mathB],
+			Message[AddKernelToJupyter::nobin, "Wolfram Language kernel"];
+			Return[$Failed];
+		];
+
+		oldEnv = Environment["PATH"];
+		SetEnvironment["PATH" -> StringJoin[Environment["PATH"], pathSeperator, DirectoryName[jupyterPath]]];
 
 		kernelUUID = CreateUUID[];
 		tempDir = CreateDirectory[
@@ -102,8 +188,8 @@ AddKernelToJupyter[jupyterPath_String] :=
 		Export[
 			FileNameJoin[{tempDir, "kernel.json"}], 
 			Association[
-				"argv" -> {mathBin, "-script", FileNameJoin[{pacletHome, "Resources", "kernel.wl"}], "{connection_file}"},
-				"display_name" -> "Wolfram Language",
+				"argv" -> {mathB, "-script", FileNameJoin[{pacletHome, "Resources", "kernel.wl"}], "{connection_file}"},
+				"display_name" -> displayName,
 				"language" -> "Wolfram Language"
 			]
 		];
@@ -118,7 +204,11 @@ AddKernelToJupyter[jupyterPath_String] :=
 		DeleteDirectory[DirectoryName[tempDir], DeleteContents -> True];
 
 		kernelspecAssoc = getKernelspecAssoc[jupyterPath];
-		kernelspecs = Keys[kernelspecAssoc["kernelspecs"]];
+		If[
+			KeyExistsQ[kernelspecAssoc, "kernelspecs"],
+			kernelspecs = Keys[kernelspecAssoc["kernelspecs"]];,
+			kernelspecs = {};
+		];
 
 		If[!MemberQ[
 				kernelspecs,
@@ -129,24 +219,7 @@ AddKernelToJupyter[jupyterPath_String] :=
 			Return[$Failed];
 		];
 
-		(* Return[kernelUUID]; *)
-	];
-
-RemoveKernelFromJupyter[jupyterPath_String (*, kernelUUID_String *)] := 
-	Module[{exitCode, kernelspecAssoc, kernelspecs},
-		exitCode = RunProcess[{jupyterPath, "kernelspec", "remove", "-f", (* kernelUUID *) globalKernelUUID}, "ExitCode"];
-
-		kernelspecAssoc = getKernelspecAssoc[jupyterPath];
-		kernelspecs = Keys[kernelspecAssoc["kernelspecs"]];
-
-		If[MemberQ[
-				kernelspecs,
-				(* kernelUUID *)
-				globalKernelUUID
-			],
-			Message[RemoveKernelFromJupyter::notremoved];
-			Return[$Failed];
-		];
+		SetEnvironment["PATH" -> oldEnv];
 
 		(* Return[kernelUUID]; *)
 	];
