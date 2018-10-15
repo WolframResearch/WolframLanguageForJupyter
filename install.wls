@@ -258,7 +258,7 @@ templateWLPath = FileNameJoin[{"", "absolute", "path", "to", "Wolfram", "Languag
 
 helpMessage = StringJoin[
 				"install.wls: Usage: install.wls add [", templateJupyterPath, "]\ninstall.wls: Usage:\tadds a Wolfram Language kernel to a Jupyter binary on PATH, or optional provided Jupyter binary path\n",
-				"install.wls: Usage: install.wls add ", templateJupyterPath, " ", templateWLPath, "\ninstall.wls: Usage:\tadds the provided absolute Wolfram Language kernel path to the provided Jupyter binary path\n",
+				"install.wls: Usage: install.wls add ", templateJupyterPath, " ", templateWLPath, "\ninstall.wls: Usage:\tadds the provided absolute Wolfram Language kernel binary path to the provided Jupyter binary path\n",
 				"install.wls: Usage: install.wls remove [", templateJupyterPath ,"]\ninstall.wls: Usage:\tremoves any Wolfram Language kernels found on a Jupyter binary on PATH, or optional provided Jupyter binary path"
 			];
 

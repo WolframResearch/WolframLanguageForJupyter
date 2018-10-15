@@ -1,27 +1,27 @@
 BeginPackage["WolframLanguageForJupyter`"];
 
-(* AddKernelToJupyter::usage = "AddKernelToJupyter[] attempts to add the Wolfram kernel to the Jupyter installation on Environment[\"PATH\"].
+(* AddKernelToJupyter::usage = "AddKernelToJupyter[] attempts to add the Wolfram Language kernel to the Jupyter installation on Environment[\"PATH\"].
 AddKernelToJupyter[\"\!\(\*
-StyleBox[\"path\", \"TI\"]\)\"] adds the Wolfram kernel to the location of the Jupyter binary at \!\(\*
+StyleBox[\"path\", \"TI\"]\)\"] adds the Wolfram Language kernel to the location of the Jupyter binary at \!\(\*
 StyleBox[\"path\", \"TI\"]\)."; *)
-AddKernelToJupyter::usage = "AddKernelToJupyter[] attempts to add the Wolfram kernel to the Jupyter installation on Environment[\"PATH\"].
-AddKernelToJupyter[\"path\"] adds the Wolfram kernel to the location of the Jupyter binary at path.
-AddKernelToJupyter[\"path\", \"kernel\"] adds the absolute Wolfram Language kernel binary path at kernel to the location of the Jupyter binary at path.";
+AddKernelToJupyter::usage = "AddKernelToJupyter[] adds a Wolfram Language kernel to a Jupyter binary on Environment[\"PATH\"].
+AddKernelToJupyter[\"jupyter\"] adds a Wolfram Language kernel to the provided Jupyter binary path.
+AddKernelToJupyter[\"jupyter\", \"kernel\"] adds the provided absolute Wolfram Language kernel binary path to the provided Jupyter binary path.";
 AddKernelToJupyter::notfound = "Jupyter installation on Environment[\"PATH\"] not found.";
-AddKernelToJupyter::isdir = "Provided `1` binary path is a directory. Please provide the path to the `1` binary."
+AddKernelToJupyter::isdir = "Provided `1` binary path is a directory. Please provide the path to the `1` binary.";
 AddKernelToJupyter::nobin = "Provided `1` binary path does not exist.";
-AddKernelToJupyter::notadded = "An error has occurred. There is still no Wolfram kernel in \"jupyter kernelspec list.\"";
+AddKernelToJupyter::notadded = "An error has occurred. There is still no Wolfram Language kernel in \"jupyter kernelspec list.\"";
 
-(* RemoveKernelFromJupyter::usage = "RemoveKernelFromJupyter[] attempts to remove any Wolfram kernels from the Jupyter installation on Environment[\"PATH\"].
+(* RemoveKernelFromJupyter::usage = "RemoveKernelFromJupyter[] attempts to remove any Wolfram Language kernels from the Jupyter installation on Environment[\"PATH\"].
 RemoveKernelFromJupyter[\"\!\(\*
-StyleBox[\"path\", \"TI\"]\)\"] removes any Wolfram kernels from the location of the Jupyter binary at \!\(\*
+StyleBox[\"path\", \"TI\"]\)\"] removes any Wolfram Language kernels from the location of the Jupyter binary at \!\(\*
 StyleBox[\"path\", \"TI\"]\)."; *)
-RemoveKernelFromJupyter::usage = "RemoveKernelFromJupyter[] attempts to remove any Wolfram kernels from the Jupyter installation on Environment[\"PATH\"].
-RemoveKernelFromJupyter[\"path\"] removes any Wolfram kernels from the location of the Jupyter binary at path.";
+RemoveKernelFromJupyter::usage = "RemoveKernelFromJupyter[] removes any Wolfram Language kernels found on a Jupyter binary on Environment[\"PATH\"].
+RemoveKernelFromJupyter[\"jupyter\"] removes any Wolfram Language kernels found on the provided Jupyter binary path.";
 RemoveKernelFromJupyter::notfound = AddKernelToJupyter::notfound;
 RemoveKernelFromJupyter::isdir = AddKernelToJupyter::isdir;
 RemoveKernelFromJupyter::nobin = AddKernelToJupyter::nobin;
-RemoveKernelFromJupyter::notremoved = "An error has occurred. There is a Wolfram kernel still in \"jupyter kernelspec list.\"";
+RemoveKernelFromJupyter::notremoved = "An error has occurred. There is a Wolfram Language kernel still in \"jupyter kernelspec list.\"";
 
 Begin["`Private`"];
 
