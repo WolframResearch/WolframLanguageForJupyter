@@ -1,5 +1,6 @@
 (* Do not output messages to the jupyter notebook invocation: *)
 $Messages = {};
+$Output = {};
 
 Get["ZeroMQLink`"];
 
@@ -52,6 +53,26 @@ doText[expr_] := Module[{pObjects},
    	Return[False];
 ];
 
+Unprotect[Print];
+
+Print[args___, opts:OptionsPattern[]] :=
+	Block[
+		{
+			$inPrint=True,
+			$Output={OpenWrite[FormatType->StandardForm]}
+		},
+		If[
+			!FailureQ[First[$Output]] && Length[WolframLanguageForJupyter`Private`srm] > 0,
+				Print[args, opts];
+				WolframLanguageForJupyter`Private`printFunction[
+					Import[$Output[[1,1]], "String"]
+				];
+		];
+		Null
+	] /; !TrueQ[$inPrint];
+
+Protect[Print];
+
 jupEval[expr_] := Module[{$oldMessages, stream, msgs, eval, evalExpr},
 	eval = Association[];
 	$oldMessages = $Messages;
@@ -62,8 +83,7 @@ jupEval[expr_] := Module[{$oldMessages, stream, msgs, eval, evalExpr},
 	$Messages = $oldMessages;
 	msgs = Import[stream[[1]], "String"];
 	Close[stream];
-	AssociateTo[eval, "res" -> evalExpr];
-	AssociateTo[eval, "msgs" -> msgs];
+	AssociateTo[eval, {"res" -> evalExpr, "msgs" -> msgs}];
 	Return[eval];
 ];
 SetAttributes[jupEval, HoldAll];
@@ -249,16 +269,12 @@ If[FailureQ[ioPubSocket] || FailureQ[controlSocket] || FailureQ[inputSocket] || 
 	Quit[];
 ];
 
-executionCount = 1;
-
-ioPubReplyFrame = Association[];
-
-doShutdown = False;
+printFunction = Function[#;];
+srm = ByteArray[{}];
 
 jupyterEvaluationLoop[] :=
 	Module[
 		{
-			srm,
 			frameAssoc,
 			replyMsgType,
 			replyContent,
@@ -267,8 +283,18 @@ jupyterEvaluationLoop[] :=
 			$msgs,
 			ioPubReplyContent,
 			statReplyFrame,
-			shellReplyFrame
+			shellReplyFrame,
+
+			executionCount,
+			ioPubReplyFrame,
+			doShutdown
 		},
+
+		executionCount = 1;
+
+		ioPubReplyFrame = Association[];
+
+		doShutdown = False;
 
 		While[
 			True,
@@ -291,12 +317,31 @@ jupyterEvaluationLoop[] :=
 					replyMsgType = "execute_reply";
 					replyContent = ExportString[Association["status" -> "ok", "execution_count" -> executionCount, "user_expressions" -> {}], "JSON", "Compact" -> True];
 
+					printFunction = (sendFrame[
+						ioPubSocket,
+						getFrameAssoc[
+								srm,
+								"stream",
+								ExportString[
+									Association[
+											"name" -> "stdout",
+											"text" -> #1
+									], "JSON", "Compact" -> True
+								]
+								,
+								False
+						]["replyMsg"]
+					]&);
+
 					$jupResEval = ToExpression[frameAssoc["content"]["code"], InputForm, Uninteract];
 					$res = $jupResEval["res"];
 					$msgs = $jupResEval["msgs"];
+
+					printFunction = Function[#;];
+
 					If[FailureQ[$jupResEval],
-						$res=$Failed;
-						$msgs=jupEval[ToExpression[frameAssoc["content"]["code"], InputForm]]["msgs"];
+						$res = $Failed;
+						$msgs = jupEval[ToExpression[frameAssoc["content"]["code"], InputForm]]["msgs"];
 					];
 
 					If[TrueQ[InteractQ[ToExpression[frameAssoc["content"]["code"], InputForm, Hold]]] && $CloudConnected,
