@@ -147,7 +147,7 @@ getFrameAssoc[frame_Association, replyType_String, replyContent_String, branchOf
 	header = frame["header"];
 	content = frame["content"];
 
-	AssociateTo[res, {"header" -> Association[ImportString[header, "JSON"]], "content" -> Association[ImportString[content, "JSON"]]}];
+	AssociateTo[res, {"header" -> Association[ImportByteArray[StringToByteArray[header], "JSON"]], "content" -> Association[ImportByteArray[StringToByteArray[content], "JSON"]]}];
 	AssociateTo[
 		res, 
 		"replyMsg" -> 
