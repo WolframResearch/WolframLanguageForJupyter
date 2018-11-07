@@ -74,9 +74,15 @@ sendFrame[socket_, frame_Association] := Module[{},
 
 	ZeroMQLink`ZMQSocketWriteMessage[
 		socket, 
+		frame["ident"],
+		"Multipart" -> True
+	];
+
+	ZeroMQLink`ZMQSocketWriteMessage[
+		socket, 
 		StringToByteArray[#1],
 		"Multipart" -> True
-	]& /@ Lookup[frame, {"uuid", "idsmsg", "signature", "header", "pheader", "metadata"}];
+	]& /@ Lookup[frame, {"idsmsg", "signature", "header", "pheader", "metadata"}];
 
 	ZeroMQLink`ZMQSocketWriteMessage[
 		socket, 
@@ -141,12 +147,12 @@ getFrameAssoc[frame_Association, replyType_String, replyContent_String, branchOf
 	header = frame["header"];
 	content = frame["content"];
 
-	AssociateTo[res, {"header" -> Association[ImportString[header, "JSON"]], "content" -> Association[ImportString[content, "JSON"]]}];
+	AssociateTo[res, {"header" -> Association[ImportByteArray[StringToByteArray[header], "JSON"]], "content" -> Association[ImportByteArray[StringToByteArray[content], "JSON"]]}];
 	AssociateTo[
 		res, 
 		"replyMsg" -> 
 			Association[
-				"uuid" -> res["header"]["session"],
+				"ident" -> If[KeyExistsQ[frame, "ident"], frame["ident"], ByteArray[{0, 0, 0, 0, 0}]],
 				"idsmsg" -> "<IDS|MSG>",
 				"header" -> ExportString[Append[res["header"], {"date" -> DateString["ISODateTime"], "msg_type" -> replyType, "msg_id" -> StringInsert[StringReplace[CreateUUID[], "-" -> ""], "-", 9]}], "JSON", "Compact" -> True],
 				"pheader" -> If[branchOff, "{}", header],
@@ -175,17 +181,17 @@ getFrameAssoc[frame_Association, replyType_String, replyContent_String, branchOf
 	Return[res];
 ];
 
-getFrameAssoc[baFrame_ByteArray, replyType_String, replyContent_String, branchOff:(True|False)] := Module[{frameStr, res = Association[], header, pheader, metadata, content},
+getFrameAssoc[baFrame_ByteArray, replyType_String, replyContent_String, branchOff:(True|False)] := Module[{frameStr, res = Association[], identLen, header, pheader, metadata, content},
 	frameStr = Quiet[ByteArrayToString[baFrame]];
 
-	{header, pheader, metadata, content} = First[StringCases[frameStr,
-			"<IDS|MSG>" ~~ ___ ~~ "{" ~~ json1___ ~~ "}" ~~ "{" ~~ json2___ ~~ "}" ~~ "{" ~~ json3___ ~~ "}" ~~ "{" ~~ json4___ ~~ "}" ~~ EndOfString :> 
-				(StringJoin["{",#1,"}"] &) /@ {json1,json2,json3,json4}
+	{identLen, header, pheader, metadata, content} = First[StringCases[frameStr,
+			ident1___ ~~ "<IDS|MSG>" ~~ ___ ~~ "{" ~~ json1___ ~~ "}" ~~ "{" ~~ json2___ ~~ "}" ~~ "{" ~~ json3___ ~~ "}" ~~ "{" ~~ json4___ ~~ "}" ~~ EndOfString :> 
+				Prepend[(StringJoin["{",#1,"}"] &) /@ {json1,json2,json3,json4}, StringLength[ident1]]
 		]];
 
 	Return[
 		getFrameAssoc[
-			Association["header" -> header, "content" -> content],
+			Association["ident" -> baFrame[[;;identLen]], "header" -> header, "content" -> content],
 			replyType,
 			replyContent,
 			branchOff
@@ -249,142 +255,162 @@ ioPubReplyFrame = Association[];
 
 doShutdown = False;
 
-While[
-	True,
-	Switch[
-		First[SocketWaitNext[{shellSocket}]], 
-		shellSocket, 
-		srm = SocketReadMessage[shellSocket, "Multipart" -> True];
-		frameAssoc = getFrameAssoc[srm, "", "{}", False];
-		Switch[
-			frameAssoc["header"]["msg_type"], 
-			"kernel_info_request",
-			replyMsgType = "kernel_info_reply";
-			replyContent = "{\"protocol_version\":\"5.3.0\",\"implementation\":\"WL\"}";,
-			"is_complete_request",
-			(* Add syntax-Q checking *)
-			replyMsgType = "is_complete_reply";
-			replyContent = "{\"status\":\"unknown\"}";,
-			"execute_request",
+jupyterEvaluationLoop[] :=
+	Module[
+		{
+			srm,
+			frameAssoc,
+			replyMsgType,
+			replyContent,
+			$jupResEval,
+			$res,
+			$msgs,
+			ioPubReplyContent,
+			statReplyFrame,
+			shellReplyFrame
+		},
 
-			replyMsgType = "execute_reply";
-			replyContent = ExportString[Association["status" -> "ok", "execution_count" -> executionCount, "user_expressions" -> {}], "JSON", "Compact" -> True];
+		While[
+			True,
+			Switch[
+				First[SocketWaitNext[{shellSocket}]], 
+				shellSocket, 
+				srm = SocketReadMessage[shellSocket, "Multipart" -> True];
+				frameAssoc = getFrameAssoc[srm, "", "{}", False];
+				Switch[
+					frameAssoc["header"]["msg_type"], 
+					"kernel_info_request",
+					replyMsgType = "kernel_info_reply";
+					replyContent = "{\"protocol_version\":\"5.3.0\",\"implementation\":\"WL\"}";,
+					"is_complete_request",
+					(* Add syntax-Q checking *)
+					replyMsgType = "is_complete_reply";
+					replyContent = "{\"status\":\"unknown\"}";,
+					"execute_request",
 
-			$jupResEval = ToExpression[frameAssoc["content"]["code"], InputForm, Uninteract];
-			$res = $jupResEval["res"];
-			$msgs = $jupResEval["msgs"];
-			If[FailureQ[$jupResEval],
-				$res=$Failed;
-				$msgs=jupEval[ToExpression[frameAssoc["content"]["code"], InputForm]]["msgs"];
-			];
+					replyMsgType = "execute_reply";
+					replyContent = ExportString[Association["status" -> "ok", "execution_count" -> executionCount, "user_expressions" -> {}], "JSON", "Compact" -> True];
 
-			If[TrueQ[InteractQ[ToExpression[frameAssoc["content"]["code"], InputForm, Hold]]] && $CloudConnected,
-				ioPubReplyContent = ExportString[
-										Association[
-											"execution_count" -> executionCount,
-											"data" -> {"text/html" -> StringJoin[
-																		"<div><img alt=\"\" src=\"data:image/png;base64,", 
-																		BaseEncode[ExportByteArray[Rasterize[Style[$msgs, Darker[Red]]], "PNG"]],
-																		"\">",
-																		EmbedCode[CloudDeploy[$res], "HTML"][[1]]["CodeSection"]["Content"],
-																		"</div>"
-																	]
-														},
-											"metadata" -> {"text/html" -> {}}
-										],
-										"JSON",
-										"Compact" -> True
-									];
-				,
-				If[doText[$res],
-					ioPubReplyContent = ExportString[
-						Association[
-							"execution_count" -> executionCount, 
-							"data" -> {"text/html" -> StringJoin[
-														"<div>",
-														If[StringLength[$msgs] == 0,
-															{},
-															{
-																"<pre style=\"",
-																StringJoin[{"&#",ToString[#1], ";"} & /@ ToCharacterCode["color:red; font-family: \"Courier New\",Courier,monospace;"]], 
-																"\">",
-																StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode[$msgs]],
-																"</pre>"
-															}
-														],
-														"<pre style=\"",
-														StringJoin[{"&#",ToString[#1], ";"} & /@ ToCharacterCode["font-family: \"Courier New\",Courier,monospace;"]], 
-														"\">",
-														StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode[ToString[$res]]],
-														"</pre></div>"
-													]
-										},
-							"metadata" -> {"text/html" -> {}}
-						],
-						"JSON",
-						"Compact" -> True
-					];,
-					ioPubReplyContent = ExportString[
-						Association[
-							"execution_count" -> executionCount,
-							"data" -> {"text/html" -> StringJoin[
-														"<div>",
-														Sequence @@ If[StringLength[$msgs] == 0,
-															{},
-															{
-																"<pre style=\"",
-																StringJoin[{"&#",ToString[#1], ";"} & /@ ToCharacterCode["color:red; font-family: \"Courier New\",Courier,monospace;"]], 
-																"\">",
-																StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode[$msgs]],
-																"</pre>"
-															}
-														],
-														"<img alt=\"Output\" src=\"data:image/png;base64,",
-														BaseEncode[
-															ExportByteArray[
-																If[Head[$res] === Manipulate, $res, Rasterize[$res]],
-																"PNG"
-															]
-														],
-														"\"></div>"
-													]
-										},
-							"metadata" -> {"text/html" -> {}}
-						],
-						"JSON",
-						"Compact" -> True
+					$jupResEval = ToExpression[frameAssoc["content"]["code"], InputForm, Uninteract];
+					$res = $jupResEval["res"];
+					$msgs = $jupResEval["msgs"];
+					If[FailureQ[$jupResEval],
+						$res=$Failed;
+						$msgs=jupEval[ToExpression[frameAssoc["content"]["code"], InputForm]]["msgs"];
 					];
+
+					If[TrueQ[InteractQ[ToExpression[frameAssoc["content"]["code"], InputForm, Hold]]] && $CloudConnected,
+						ioPubReplyContent = ExportString[
+												Association[
+													"execution_count" -> executionCount,
+													"data" -> {"text/html" -> StringJoin[
+																				"<div><img alt=\"\" src=\"data:image/png;base64,", 
+																				BaseEncode[ExportByteArray[Rasterize[Style[$msgs, Darker[Red]]], "PNG"]],
+																				"\">",
+																				EmbedCode[CloudDeploy[$res], "HTML"][[1]]["CodeSection"]["Content"],
+																				"</div>"
+																			]
+																},
+													"metadata" -> {"text/html" -> {}}
+												],
+												"JSON",
+												"Compact" -> True
+											];
+						,
+						If[doText[$res],
+							ioPubReplyContent = ExportString[
+								Association[
+									"execution_count" -> executionCount, 
+									"data" -> {"text/html" -> StringJoin[
+																"<div>",
+																If[StringLength[$msgs] == 0,
+																	{},
+																	{
+																		"<pre style=\"",
+																		StringJoin[{"&#",ToString[#1], ";"} & /@ ToCharacterCode["color:red; font-family: \"Courier New\",Courier,monospace;"]], 
+																		"\">",
+																		StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode[$msgs]],
+																		"</pre>"
+																	}
+																],
+																"<pre style=\"",
+																StringJoin[{"&#",ToString[#1], ";"} & /@ ToCharacterCode["font-family: \"Courier New\",Courier,monospace;"]], 
+																"\">",
+																StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode[ToString[$res]]],
+																"</pre></div>"
+															]
+												},
+									"metadata" -> {"text/html" -> {}}
+								],
+								"JSON",
+								"Compact" -> True
+							];,
+							ioPubReplyContent = ExportString[
+								Association[
+									"execution_count" -> executionCount,
+									"data" -> {"text/html" -> StringJoin[
+																"<div>",
+																Sequence @@ If[StringLength[$msgs] == 0,
+																	{},
+																	{
+																		"<pre style=\"",
+																		StringJoin[{"&#",ToString[#1], ";"} & /@ ToCharacterCode["color:red; font-family: \"Courier New\",Courier,monospace;"]], 
+																		"\">",
+																		StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode[$msgs]],
+																		"</pre>"
+																	}
+																],
+																"<img alt=\"Output\" src=\"data:image/png;base64,",
+																BaseEncode[
+																	ExportByteArray[
+																		If[Head[$res] === Manipulate, $res, Rasterize[$res]],
+																		"PNG"
+																	]
+																],
+																"\"></div>"
+															]
+												},
+									"metadata" -> {"text/html" -> {}}
+								],
+								"JSON",
+								"Compact" -> True
+							];
+						];
+					];
+
+					ioPubReplyFrame = getFrameAssoc[srm, "execute_result", ioPubReplyContent, False];
+
+					executionCount++;,
+					"shutdown_request",
+					replyMsgType = "shutdown_reply";
+					replyContent = "{\"restart\":false}";
+					doShutdown = True;,
+					_,
+					Continue[];
 				];
+				statReplyFrame = getFrameAssoc[srm, "status", "{\"execution_state\":\"busy\"}", True]["replyMsg"];
+				sendFrame[ioPubSocket, statReplyFrame];
+
+				shellReplyFrame = getFrameAssoc[srm, replyMsgType, replyContent, False];
+				sendFrame[shellSocket, shellReplyFrame["replyMsg"]];
+
+				If[!(ioPubReplyFrame === Association[]),
+					sendFrame[ioPubSocket, ioPubReplyFrame["replyMsg"]];
+					ioPubReplyFrame = Association[];
+				];
+
+				sendFrame[ioPubSocket, getFrameAssoc[statReplyFrame, "status", "{\"execution_state\":\"idle\"}", False]["replyMsg"]];
+
+				If[doShutdown, Quit[];];
+				,
+				_,
+				Continue[];
 			];
-
-			ioPubReplyFrame = getFrameAssoc[srm, "execute_result", ioPubReplyContent, False];
-
-			executionCount++;,
-			"shutdown_request",
-			replyMsgType = "shutdown_reply";
-			replyContent = "{\"restart\":false}";
-			doShutdown = True;,
-			_,
-			Continue[];
 		];
-		statReplyFrame = getFrameAssoc[srm, "status", "{\"execution_state\":\"busy\"}", True]["replyMsg"];
-		sendFrame[ioPubSocket, statReplyFrame];
-
-		shellReplyFrame = getFrameAssoc[srm, replyMsgType, replyContent, False];
-		sendFrame[shellSocket, shellReplyFrame["replyMsg"]];
-
-		If[!(ioPubReplyFrame === Association[]),
-			sendFrame[ioPubSocket, ioPubReplyFrame["replyMsg"]];
-			ioPubReplyFrame = Association[];
-		];
-
-		sendFrame[ioPubSocket, getFrameAssoc[statReplyFrame, "status", "{\"execution_state\":\"idle\"}", False]["replyMsg"]];
-
-		If[doShutdown, Quit[];];
-		,
-		_,
-		Continue[];
 	];
-];
 
 End[];
+
+(* This setup does not preclude dynamics or widgets. *)
+
+WolframLanguageForJupyter`Private`jupyterEvaluationLoop[];
