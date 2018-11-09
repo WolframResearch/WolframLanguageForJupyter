@@ -257,9 +257,12 @@ templateJupyterPath = FileNameJoin[{"path", "to", "Jupyter", "binary"}];
 templateWLPath = FileNameJoin[{"", "absolute", "path", "to", "Wolfram", "Language", "kernel", "binary"}];
 
 helpMessage = StringJoin[
-				"install.wls: Usage: install.wls add [", templateJupyterPath, "]\ninstall.wls: Usage:\tadds a Wolfram Language kernel to a Jupyter binary on PATH, or optional provided Jupyter binary path\n",
-				"install.wls: Usage: install.wls add ", templateJupyterPath, " ", templateWLPath, "\ninstall.wls: Usage:\tadds the provided absolute Wolfram Language kernel binary path to the provided Jupyter binary path\n",
-				"install.wls: Usage: install.wls remove [", templateJupyterPath ,"]\ninstall.wls: Usage:\tremoves any Wolfram Language kernels found on a Jupyter binary on PATH, or optional provided Jupyter binary path"
+				"install.wls add [", templateJupyterPath, "]\n",
+				"install.wls adds a Wolfram Language kernel to a Jupyter binary on PATH, or optional provided Jupyter binary path\n",
+				"install.wls add ", templateJupyterPath, " ", templateWLPath, "\n",
+				"\tadds the provided absolute Wolfram Language kernel binary path to the provided Jupyter binary path\n",
+				"install.wls remove [", templateJupyterPath ,"]\n",
+				"\tremoves any Wolfram Language kernels found on a Jupyter binary on PATH, or optional provided Jupyter binary path"
 			];
 
 If[Length[$ScriptCommandLine] == 1 || $ScriptCommandLine[[2]] === "help",

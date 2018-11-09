@@ -2,6 +2,9 @@
 
 Jupyter provides a protocol (ZMQ) to connect their notebooks to various languages. This project defines a Wolfram Language kernel which can be used in Jupyter notebooks.
 
+# Prerequisites
+
+* 
 
 # Installation
 
