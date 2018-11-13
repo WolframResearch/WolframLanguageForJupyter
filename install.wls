@@ -1,3 +1,5 @@
+#!/usr/bin/env wolframscript
+
 Begin["WolframLanguageForJupyter`Private`"];
 
 notfound = "install.wls: Jupyter installation on Environment[\"PATH\"] not found.";

@@ -1,3 +1,5 @@
+#!/usr/bin/env wolframscript
+
 If[
 	Length[$ScriptCommandLine] > 1 && $ScriptCommandLine[[2]] === "help",
 	helpMessage = StringJoin[
