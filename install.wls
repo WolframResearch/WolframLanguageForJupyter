@@ -9,28 +9,59 @@ notadded = "install.wls: An error has occurred. There is still no Wolfram Langua
 notremoved = "install.wls: An error has occurred. There is a Wolfram Language kernel still in \"jupyter kernelspec list.\"";
 nopaclet = "install.wls: WolframLanguageForJupyter paclet source not detected. Are you running the script in the root project directory?";
 
-(* globalKernelUUID = "11a8cf20-da0e-4976-83e5-27579d6360b3"; *)
-hashedKernelUUID = Hash[$InstallationDirectory, "SHA", "HexString"];
-names = StringCases[$Version, name___ ~~ " for " ~~ ("Mac" | "Microsoft" | "Windows" | "Linux") -> name];
-If[Length[names] > 0, 
-	globalKernelUUID =
-		ToLowerCase[StringJoin[
-			"WolframLanguage-",
-			StringReplace[First[names], Whitespace -> "-"]
-		]];
-	displayName = 
-		StringJoin[
-			"Wolfram Language (",
-			Capitalize[
-				First[names],
-				"AllWords"
-			],
-			")"
+globalKernelUUID;
+displayName;
+
+getVersionFromKernel[mathB_String] :=
+	Module[{link, res},
+		link = LinkLaunch[First[$CommandLine] <> " -wstp"];
+		If[FailureQ[link],
+			Return["$Failed"];
 		];
-	,
-	globalKernelUUID = hashedKernelUUID;
-	displayName = "Wolfram Language";
-];
+		LinkRead[link];
+		LinkWrite[link, Unevaluated[$Version]];
+		res = StringTrim[ToString[LinkRead[link]], "ReturnPacket[" | "]"];
+		LinkClose[link];
+		If[!StringContainsQ[res, "[" | "]"],
+			Return[res];,
+			Return["$Failed"];
+		];
+	];
+
+getNames[mathB_String, wasProvided_?BooleanQ] := 
+	Module[{version, installDir, names, displayNameTemp, globalKernelUUIDTemp, hashedKernelUUID},
+		If[
+			wasProvided,
+			version = $Version;
+			installDir = $InstallationDirectory;
+			,
+			version = getVersionFromKernel[mathB];
+			installDir = mathB;
+		];
+		(* globalKernelUUID = "11a8cf20-da0e-4976-83e5-27579d6360b3"; *)
+		hashedKernelUUID = Hash[installDir, "SHA", "HexString"];
+		names = StringCases[version, name___ ~~ " for " ~~ ("Mac" | "Microsoft" | "Windows" | "Linux") -> name];
+		If[Length[names] > 0, 
+			globalKernelUUIDTemp =
+				ToLowerCase[StringJoin[
+					"WolframLanguage-",
+					StringReplace[First[names], Whitespace -> "-"]
+				]];
+			displayNameTemp = 
+				StringJoin[
+					"Wolfram Language (",
+					Capitalize[
+						First[names],
+						"AllWords"
+					],
+					")"
+				];
+			,
+			globalKernelUUIDTemp = hashedKernelUUID;
+			displayNameTemp = "Wolfram Language";
+		];
+		Return[{globalKernelUUIDTemp, displayNameTemp}];
+	];
 
 projectHome = Directory[];
 kernelScript = FileNameJoin[{projectHome, "WolframLanguageForJupyter", "Resources", "kernel.wl"}];
@@ -276,15 +307,18 @@ If[Length[$ScriptCommandLine] == 1 || $ScriptCommandLine[[2]] === "help",
 	Switch[
 		Length[$ScriptCommandLine],
 		4,
+		{globalKernelUUID, displayName} = getNames[StringTrim[$ScriptCommandLine[[4]], "*"], True];
 		command[
 			StringTrim[$ScriptCommandLine[[3]], "*"],
 			StringTrim[$ScriptCommandLine[[4]], "*"]
 		];,
 		3,
+		{globalKernelUUID, displayName} = getNames["", False];
 		command[
 			StringTrim[$ScriptCommandLine[[3]], "*"]
 		];,
 		_,
+		{globalKernelUUID, displayName} = getNames["", False];
 		command[];
 	];
 ];
