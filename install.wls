@@ -280,7 +280,8 @@ addKernelToJupyter[jupyterPath_String, mathB_String] :=
 					"install",
 					"--user",
 					tempDir
-				}, "ExitCode", ProcessEnvironment -> processEnvironment];
+				}, All, ProcessEnvironment -> processEnvironment];
+		Print["MESSAGE: ", exitCode]
 
 		(* DeleteDirectory[tempDir, DeleteContents -> True]; *)
 		DeleteDirectory[DirectoryName[tempDir], DeleteContents -> True];
