@@ -25,6 +25,8 @@ RemoveKernelFromJupyter::notremoved = "An error has occurred. There is a Wolfram
 
 Begin["`Private`"];
 
+processEnvironment;
+
 (* globalKernelUUID = "11a8cf20-da0e-4976-83e5-27579d6360b3"; *)
 hashedKernelUUID = Hash[$InstallationDirectory, "SHA", "HexString"];
 names = StringCases[$Version, name___ ~~ " for " ~~ ("Mac" | "Microsoft" | "Windows" | "Linux") -> name];
@@ -74,7 +76,7 @@ defineGlobalVars :=
 findJupyerPath[] := 
 	SelectFirst[
 		StringSplit[Environment["PATH"], pathSeperator],
-		FileExistsQ[FileNameJoin[{#1, StringJoin["jupyter", fileExt]}]]&
+		(FileType[FileNameJoin[{#1, StringJoin["jupyter", fileExt]}]] === File)&
 	];
 
 AddKernelToJupyter[] := 
@@ -99,7 +101,7 @@ RemoveKernelFromJupyter[] :=
 
 getKernelspecAssoc[jupyterPath_String] := 
 	Module[{json},
-		json = Quiet[ImportString[RunProcess[{jupyterPath, "kernelspec", "list", "--json"}, "StandardOutput"], "JSON"]];
+		json = Quiet[ImportString[RunProcess[{jupyterPath, "kernelspec", "list", "--json"}, "StandardOutput"], "JSON", ProcessEnvironment -> processEnvironment]];
 		If[
 			FailureQ[json],
 			Return[Association[]];
@@ -116,7 +118,7 @@ getKernelspecAssoc[jupyterPath_String] :=
 AddKernelToJupyter[jupyterPath_String] := AddKernelToJupyter[jupyterPath, mathBin];
 
 RemoveKernelFromJupyter[jupyterPath_String (*, kernelUUID_String *)] := 
-	Module[{exitCodeOld, exitCode, kernelspecAssoc, kernelspecs, oldEnv},
+	Module[{exitCodeOld, exitCode, kernelspecAssoc, kernelspecs},
 		If[DirectoryQ[jupyterPath],
 			Message[RemoveKernelFromJupyter::isdir, "Jupyter"];
 			Return[$Failed];
@@ -126,11 +128,10 @@ RemoveKernelFromJupyter[jupyterPath_String (*, kernelUUID_String *)] :=
 			Return[$Failed];
 		];
 
-		oldEnv = Environment["PATH"];
-		SetEnvironment["PATH" -> StringJoin[Environment["PATH"], pathSeperator, DirectoryName[jupyterPath]]];
+		processEnvironment = {"PATH" -> StringJoin[Environment["PATH"], pathSeperator, DirectoryName[jupyterPath]]};
 
-		exitCodeOld = RunProcess[{jupyterPath, "kernelspec", "remove", "-f", hashedKernelUUID}, "ExitCode"];
-		exitCode = RunProcess[{jupyterPath, "kernelspec", "remove", "-f", globalKernelUUID}, "ExitCode"];
+		exitCodeOld = RunProcess[{jupyterPath, "kernelspec", "remove", "-f", hashedKernelUUID}, "ExitCode", ProcessEnvironment -> processEnvironment];
+		exitCode = RunProcess[{jupyterPath, "kernelspec", "remove", "-f", globalKernelUUID}, "ExitCode", ProcessEnvironment -> processEnvironment];
 		
 		kernelspecAssoc = getKernelspecAssoc[jupyterPath];
 		If[
@@ -148,13 +149,11 @@ RemoveKernelFromJupyter[jupyterPath_String (*, kernelUUID_String *)] :=
 			Return[$Failed];
 		];
 
-		SetEnvironment["PATH" -> oldEnv];
-
 		(* Return[kernelUUID]; *)
 	];
 
 AddKernelToJupyter[jupyterPath_String, mathB_String] := 
-	Module[{baseDir, tempDir, exitCode, kernelspecAssoc, kernelspecs, kernelUUID, oldEnv},
+	Module[{baseDir, tempDir, exitCode, kernelspecAssoc, kernelspecs, kernelUUID},
 		If[DirectoryQ[jupyterPath],
 			Message[AddKernelToJupyter::isdir, "Jupyter"];
 			Return[$Failed];
@@ -173,8 +172,7 @@ AddKernelToJupyter[jupyterPath_String, mathB_String] :=
 			Return[$Failed];
 		];
 
-		oldEnv = Environment["PATH"];
-		SetEnvironment["PATH" -> StringJoin[Environment["PATH"], pathSeperator, DirectoryName[jupyterPath]]];
+		processEnvironment = {"PATH" -> StringJoin[Environment["PATH"], pathSeperator, DirectoryName[jupyterPath]]};
 
 		kernelUUID = CreateUUID[];
 		tempDir = CreateDirectory[
@@ -197,8 +195,9 @@ AddKernelToJupyter[jupyterPath_String, mathB_String] :=
 					jupyterPath,
 					"kernelspec",
 					"install",
+					"--user",
 					tempDir
-				}, "ExitCode"];
+				}, "ExitCode", ProcessEnvironment -> processEnvironment];
 
 		(* DeleteDirectory[tempDir, DeleteContents -> True]; *)
 		DeleteDirectory[DirectoryName[tempDir], DeleteContents -> True];
@@ -218,8 +217,6 @@ AddKernelToJupyter[jupyterPath_String, mathB_String] :=
 			Message[AddKernelToJupyter::notadded];
 			Return[$Failed];
 		];
-
-		SetEnvironment["PATH" -> oldEnv];
 
 		(* Return[kernelUUID]; *)
 	];
