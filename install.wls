@@ -209,7 +209,7 @@ removeKernelFromJupyter[jupyterPath_String (*, kernelUUID_String *)] :=
 			Return[$Failed];
 		];
 
-		processEnvironment = {"PATH" -> StringJoin[Environment["PATH"], pathSeperator, DirectoryName[jupyterPath]]};
+		(* as an association for 11.3 compatibility *) processEnvironment = Association @ {"PATH" -> StringJoin[Environment["PATH"], pathSeperator, DirectoryName[jupyterPath]]};
 
 		exitCodeOld = RunProcess[{jupyterPath, "kernelspec", "remove", "-f", hashedKernelUUID}, "ExitCode", ProcessEnvironment -> processEnvironment];
 		exitCode = RunProcess[{jupyterPath, "kernelspec", "remove", "-f", globalKernelUUID}, "ExitCode", ProcessEnvironment -> processEnvironment];
@@ -255,7 +255,7 @@ addKernelToJupyter[jupyterPath_String, mathB_String] :=
 			Return[$Failed];
 		];
 
-		processEnvironment = {"PATH" -> StringJoin[Environment["PATH"], pathSeperator, DirectoryName[jupyterPath]]};
+		(* as an association for 11.3 compatibility *) processEnvironment = Association @ {"PATH" -> StringJoin[Environment["PATH"], pathSeperator, DirectoryName[jupyterPath]]};
 
 		kernelUUID = CreateUUID[];
 		tempDir = CreateDirectory[
