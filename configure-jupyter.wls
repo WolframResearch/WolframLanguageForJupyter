@@ -1,15 +1,15 @@
-#!wolframscript
+#!/usr/bin/env wolframscript
 
 Begin["WolframLanguageForJupyter`Private`"];
 
-notfound = "install.wls: Jupyter installation on Environment[\"PATH\"] not found.";
-isdir = "install.wls: Provided Jupyter binary path is a directory. Please provide the path to the Jupyter binary."
-nobin = "install.wls: Provided Jupyter binary path does not exist.";
-isdirMath = "install.wls: Provided Wolfram Language kernel binary path is a directory. Please provide the path to the Wolfram Language kernel binary."
-nobinMath = "install.wls: Provided Wolfram Language kernel binary path does not exist.";
-notadded = "install.wls: An error has occurred. There is still no Wolfram Language kernel in \"jupyter kernelspec list.\"";
-notremoved = "install.wls: An error has occurred. There is a Wolfram Language kernel still in \"jupyter kernelspec list.\"";
-nopaclet = "install.wls: WolframLanguageForJupyter paclet source not detected. Are you running the script in the root project directory?";
+notfound = "configure-jupyter.wls: Jupyter installation on Environment[\"PATH\"] not found.";
+isdir = "configure-jupyter.wls: Provided Jupyter binary path is a directory. Please provide the path to the Jupyter binary."
+nobin = "configure-jupyter.wls: Provided Jupyter binary path does not exist.";
+isdirMath = "configure-jupyter.wls: Provided Wolfram Engine binary path is a directory. Please provide the path to the Wolfram Engine binary."
+nobinMath = "configure-jupyter.wls: Provided Wolfram Engine binary path does not exist.";
+notadded = "configure-jupyter.wls: An error has occurred. There is still no Wolfram Engine in \"jupyter kernelspec list.\"";
+notremoved = "configure-jupyter.wls: An error has occurred. There is a Wolfram Engine still in \"jupyter kernelspec list.\"";
+nopaclet = "configure-jupyter.wls: WolframLanguageForJupyter paclet source not detected. Are you running the script in the root project directory?";
 
 globalKernelUUID;
 displayName;
@@ -119,8 +119,8 @@ If[
 	FailureQ[RunProcess[$SystemShell, All, ""]],
 	If[
 		MemberQ[$CommandLine, "-script"],
-		Print["install.wls: Please use -file instead of -script in WolframScript."];,
-		Print["install.wls: An unknown error has occurred."];
+		Print["configure-jupyter.wls: Please use -file instead of -script in WolframScript."];,
+		Print["configure-jupyter.wls: An unknown error has occurred."];
 		attemptPathRegeneration[];
 	];
 	Quit[];
@@ -129,8 +129,8 @@ If[
 defineGlobalVars;
 If[
 	Length[splitPath] == 1,
-	Print["install.wls: Warning: This script has encountered a very small PATH environment variable."];
-	Print["install.wls: Warning: This can occur due to a possible WolframScript bug."];
+	Print["configure-jupyter.wls: Warning: This script has encountered a very small PATH environment variable."];
+	Print["configure-jupyter.wls: Warning: This can occur due to a possible WolframScript bug."];
 	attemptPathRegeneration[];
 ];
 
@@ -199,13 +199,16 @@ addKernelToJupyter[mathB_String] :=
 	];
 
 removeKernelFromJupyter[jupyterPath_String (*, kernelUUID_String *)] := 
-	Module[{exitCodeOld, exitCode, kernelspecAssoc, kernelspecs},
-		If[DirectoryQ[jupyterPath],
-			Print[isdir];
-			Return[$Failed];
-		];
-		If[!FileExistsQ[jupyterPath],
-			Print[nobin];
+	Module[{exitCodeOld, exitCode, kernelspecAssoc, kernelspecs, fileType},
+		If[
+			!((fileType = FileType[jupyterPath]) === File),
+			Switch[
+				fileType,
+				Directory,
+				Print[isdir];,
+				None,
+				Print[nobin];
+			];
 			Return[$Failed];
 		];
 
@@ -236,22 +239,28 @@ removeKernelFromJupyter[jupyterPath_String (*, kernelUUID_String *)] :=
 removeKernelFromJupyter[jupyterPath_String, ___] := removeKernelFromJupyter[jupyterPath];
 
 addKernelToJupyter[jupyterPath_String, mathB_String] := 
-	Module[{baseDir, tempDir, exitCode, kernelspecAssoc, kernelspecs, kernelUUID},
-		If[DirectoryQ[jupyterPath],
-			Print[isdir];
-			Return[$Failed];
-		];
-		If[!FileExistsQ[jupyterPath],
-			Print[nobin];
+	Module[{baseDir, tempDir, exitCode, kernelspecAssoc, kernelspecs, kernelUUID, fileType},
+		If[
+			!((fileType = FileType[jupyterPath]) === File),
+			Switch[
+				fileType,
+				Directory,
+				Print[isdir];,
+				None,
+				Print[nobin];
+			];
 			Return[$Failed];
 		];
 
-		If[DirectoryQ[mathB],
-			Print[isdirMath];
-			Return[$Failed];
-		];
-		If[!FileExistsQ[mathB],
-			Print[nobinMath];
+		If[
+			!((fileType = FileType[mathB]) === File),
+			Switch[
+				fileType,
+				Directory,
+				Print[isdirMath];,
+				None,
+				Print[nobinMath];
+			];
 			Return[$Failed];
 		];
 
@@ -305,33 +314,44 @@ addKernelToJupyter[jupyterPath_String, mathB_String] :=
 		(* Return[kernelUUID]; *)
 	];
 
-templateJupyterPath = FileNameJoin[{"path", "to", "Jupyter", "binary"}];
-templateWLPath = FileNameJoin[{"", "absolute", "path", "to", "Wolfram", "Language", "kernel", "binary"}];
+templateJupyterPath = StringJoin["\"", FileNameJoin[{"path", "to", "Jupyter binary"}], "\""];
+templateWLPath = StringJoin["\"", FileNameJoin[{"", "absolute", "path", "to", "Wolfram Engine binary"}], "\""]; 
 
 (* helpMessage = StringJoin[
-				"install.wls add [", templateJupyterPath, "]\n",
-				"install.wls adds a Wolfram Language kernel to a Jupyter binary on PATH, or optional provided Jupyter binary path\n",
-				"install.wls add ", templateJupyterPath, " ", templateWLPath, "\n",
-				"\tadds the provided absolute Wolfram Language kernel binary path to the provided Jupyter binary path\n",
-				"install.wls remove [", templateJupyterPath ,"]\n",
-				"\tremoves any Wolfram Language kernels found on a Jupyter binary on PATH, or optional provided Jupyter binary path"
+				"configure-jupyter.wls add [", templateJupyterPath, "]\n",
+				"configure-jupyter.wls adds a Wolfram Engine to a Jupyter binary on PATH, or optional provided Jupyter binary path\n",
+				"configure-jupyter.wls add ", templateJupyterPath, " ", templateWLPath, "\n",
+				"\tadds the provided absolute Wolfram Engine binary path to the provided Jupyter binary path\n",
+				"configure-jupyter.wls remove [", templateJupyterPath ,"]\n",
+				"\tremoves any Wolfram Engines found on a Jupyter binary on PATH, or optional provided Jupyter binary path"
 			]; *)
 
 helpMessage = StringJoin[
-				"install.wls add [", templateWLPath, "]\n",
-				"\tadds a Wolfram Language kernel, either attached to the current invocation, or at the provided absolute Wolfram Language kernel binary path, to a Jupyter binary on PATH\n",
-				"install.wls add ", templateWLPath, " ", templateJupyterPath, "\n",
-				"\tadds the provided absolute Wolfram Language kernel binary path to the provided Jupyter binary path\n",
-				"install.wls remove [", templateJupyterPath ,"]\n",
-				"\tremoves any Wolfram Language kernels found on a Jupyter binary on PATH, or optional provided Jupyter binary path"
+				"configure-jupyter.wls add [", templateWLPath, "]\n",
+				"\tadds a Wolfram Engine, either attached to the current invocation, or at the provided absolute Wolfram Engine binary path, to a Jupyter binary on PATH\n",
+				"configure-jupyter.wls add ", templateWLPath, " ", templateJupyterPath, "\n",
+				"\tadds the provided absolute Wolfram Engine binary path to the provided Jupyter binary path\n",
+				"configure-jupyter.wls remove [", templateJupyterPath ,"]\n",
+				"\tremoves any Wolfram Engines found on a Jupyter binary on PATH, or optional provided Jupyter binary path",
+				"configure-jupyter.wls build\n",
+				"\tbuilds the WolframLanguageForJupyter paclet in the project directory"
 			];
 
 If[Length[$ScriptCommandLine] == 1 || $ScriptCommandLine[[2]] === "help",
 	Print[helpMessage];
 	,
-	If[$ScriptCommandLine[[2]] === "remove",
+	Switch[
+		$ScriptCommandLine[[2]],
+		"remove",
 		command = removeKernelFromJupyter;,
-		command = addKernelToJupyter;
+		"add",
+		command = addKernelToJupyter;,
+		"build",
+		PackPaclet["WolframLanguageForJupyter"];
+		Quit[];
+		,
+		_,
+		Print[helpMessage];
 	];
 
 	Switch[
