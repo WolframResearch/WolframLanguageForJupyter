@@ -1,5 +1,9 @@
 BeginPackage["WolframLanguageForJupyter`"];
 
+ConfigureJupyter::subcommand = "The first argument to ConfigureJupyter is the subcommand: either \"add\" or \"remove\".";
+ConfigureJupyter::configuredetails = "The optional second argument to ConfigureJupyter is an association or list of rules specifying details for configuring Jupyter.";
+ConfigureJupyter::argx = "ConfigureJupyter called with `1` arguments; 1 or 2 arguments are expected.";
+
 ConfigureJupyter::addnotfound = "Jupyter installation on Environment[\"PATH\"] not found.";
 ConfigureJupyter::addisdir = "Provided `1` binary path is a directory. Please provide the path to the `1` binary.";
 ConfigureJupyter::addnobin = "Provided `1` binary path does not exist."; 
@@ -162,6 +166,7 @@ removeKernelFromJupyter[jupyterPath_String (*, kernelUUID_String *)] :=
 		];
 
 		(* Return[kernelUUID]; *)
+		Return[Success["ConfiguredJupyter", <|"Message" -> "\"Wolfram Language for Jupyter\" has been removed from Jupyter"|>]];
 	];
 
 addKernelToJupyter[jupyterPath_String, mathB_String] := 
@@ -240,6 +245,7 @@ addKernelToJupyter[jupyterPath_String, mathB_String] :=
 		];
 
 		(* Return[kernelUUID]; *)
+		Return[Success["ConfiguredJupyter", <|"Message" -> "\"Wolfram Language for Jupyter\" has been added to Jupyter"|>]];
 	];
 
 ConfigureJupyter["add"] := addKernelToJupyter[];
@@ -281,6 +287,11 @@ ConfigureJupyter["remove", KeyValuePattern[{"WolframEngineBinary" -> wl_String}]
 	];
 ConfigureJupyter["remove", KeyValuePattern[{"JupyterInstallation" -> jup_String}]] := removeKernelFromJupyter[jup];
 ConfigureJupyter["remove", KeyValuePattern[{}]] := removeKernelFromJupyter[];
+
+ConfigureJupyter[sc_String, ___] /; !StringMatchQ[sc, "add" | "remove"] := Message[ConfigureJupyter::subcommand];
+ConfigureJupyter[Except[_String], ___] := Message[ConfigureJupyter::subcommand];
+ConfigureJupyter[_, Except[KeyValuePattern[{}]], ___] := Message[ConfigureJupyter::configuredetails];
+ConfigureJupyter[args___] := Message[ConfigureJupyter::argx, Length[{args}]];
 
 End[];
 EndPackage[];
