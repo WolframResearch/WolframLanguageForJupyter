@@ -212,7 +212,9 @@ removeKernelFromJupyter[jupyterPath_String (*, kernelUUID_String *)] :=
 			Return[$Failed];
 		];
 
-		(* as an association for 11.3 compatibility *) processEnvironment = Association @ {"PATH" -> StringJoin[Environment["PATH"], pathSeperator, DirectoryName[jupyterPath]]};
+		(* as an association for 11.3 compatibility *)
+			processEnvironment = Association[GetEnvironment[]];
+			processEnvironment["PATH"] = StringJoin[Environment["PATH"], pathSeperator, DirectoryName[jupyterPath]];
 
 		exitCodeOld = RunProcess[{jupyterPath, "kernelspec", "remove", "-f", hashedKernelUUID}, "ExitCode", ProcessEnvironment -> processEnvironment];
 		exitCode = RunProcess[{jupyterPath, "kernelspec", "remove", "-f", globalKernelUUID}, "ExitCode", ProcessEnvironment -> processEnvironment];
@@ -230,6 +232,8 @@ removeKernelFromJupyter[jupyterPath_String (*, kernelUUID_String *)] :=
 				globalKernelUUID
 			],
 			Print[notremoved];
+			Print["configure-jupyter.wls: See below for the message that Jupyter returned when attempting to remove the Wolfram Engine."];
+			Print[exitCode["StandardError"]];
 			Return[$Failed];
 		];
 
@@ -264,7 +268,9 @@ addKernelToJupyter[jupyterPath_String, mathB_String] :=
 			Return[$Failed];
 		];
 
-		(* as an association for 11.3 compatibility *) processEnvironment = Association @ {"PATH" -> StringJoin[Environment["PATH"], pathSeperator, DirectoryName[jupyterPath]]};
+		(* as an association for 11.3 compatibility *)
+			processEnvironment = Association[GetEnvironment[]];
+			processEnvironment["PATH"] = StringJoin[Environment["PATH"], pathSeperator, DirectoryName[jupyterPath]];
 
 		kernelUUID = CreateUUID[];
 		tempDir = CreateDirectory[
@@ -290,7 +296,6 @@ addKernelToJupyter[jupyterPath_String, mathB_String] :=
 					"--user",
 					tempDir
 				}, All, ProcessEnvironment -> processEnvironment];
-		Print["MESSAGE: ", exitCode]
 
 		(* DeleteDirectory[tempDir, DeleteContents -> True]; *)
 		DeleteDirectory[DirectoryName[tempDir], DeleteContents -> True];
@@ -308,6 +313,8 @@ addKernelToJupyter[jupyterPath_String, mathB_String] :=
 				globalKernelUUID
 			],
 			Print[notadded];
+			Print["configure-jupyter.wls: See below for the message that Jupyter returned when attempting to add the Wolfram Engine."];
+			Print[exitCode["StandardError"]];
 			Return[$Failed];
 		];
 
