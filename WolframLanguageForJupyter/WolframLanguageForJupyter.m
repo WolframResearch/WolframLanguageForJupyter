@@ -3,12 +3,12 @@ BeginPackage["WolframLanguageForJupyter`"];
 ConfigureJupyter::addnotfound = "Jupyter installation on Environment[\"PATH\"] not found.";
 ConfigureJupyter::addisdir = "Provided `1` binary path is a directory. Please provide the path to the `1` binary.";
 ConfigureJupyter::addnobin = "Provided `1` binary path does not exist."; 
-ConfigureJupyter::addnotadded = "An error has occurred. There is still no Wolfram Engine in \"jupyter kernelspec list.\" See WolframLanguageForJupyter`ConfigureError for the message that Jupyter returned when attempting to add the Wolfram Engine.";
+ConfigureJupyter::addnotadded = "An error has occurred. There is still no Wolfram Engine in \"jupyter kernelspec list.\" See WolframLanguageForJupyter`.`Errors`.`$ConfigureError for the message that Jupyter returned when attempting to add the Wolfram Engine.";
 
 ConfigureJupyter::removenotfound = ConfigureJupyter::addnotfound;
 ConfigureJupyter::removeisdir = ConfigureJupyter::addisdir;
 ConfigureJupyter::removenobin = ConfigureJupyter::addnobin;
-ConfigureJupyter::removenotremoved = "An error has occurred. There is a Wolfram Engine still in \"jupyter kernelspec list.\" See WolframLanguageForJupyter`ConfigureError for the message that Jupyter returned when attempting to remove the Wolfram Engine.";
+ConfigureJupyter::removenotremoved = "An error has occurred. There is a Wolfram Engine still in \"jupyter kernelspec list.\" See WolframLanguageForJupyter`.`Errors`.`$ConfigureError for the message that Jupyter returned when attempting to remove the Wolfram Engine.";
 
 ConfigureJupyter::usage = 
 	"ConfigureJupyter[subcommand:\"add\"|\"remove\"] evaluates the action associated with subcommand, relying on the current Wolfram Engine binary path and the first Jupyter installation on Environment[\"PATH\"] when relevant.
@@ -142,7 +142,7 @@ removeKernelFromJupyter[jupyterPath_String (*, kernelUUID_String *)] :=
 			processEnvironment["PATH"] = StringJoin[envPath, pathSeperator, DirectoryName[jupyterPath]];
 
 		exitCodeOld = RunProcess[{jupyterPath, "kernelspec", "remove", "-f", hashedKernelUUID}, "ExitCode", ProcessEnvironment -> processEnvironment];
-		exitCode = RunProcess[{jupyterPath, "kernelspec", "remove", "-f", globalKernelUUID}, "ExitCode", ProcessEnvironment -> processEnvironment];
+		exitCode = RunProcess[{jupyterPath, "kernelspec", "remove", "-f", globalKernelUUID}, All, ProcessEnvironment -> processEnvironment];
 		
 		kernelspecAssoc = getKernelspecAssoc[jupyterPath];
 		If[
@@ -156,7 +156,7 @@ removeKernelFromJupyter[jupyterPath_String (*, kernelUUID_String *)] :=
 				(* kernelUUID *)
 				globalKernelUUID
 			],
-			WolframLanguageForJupyter`ConfigureError = exitCode["StandardError"];
+			WolframLanguageForJupyter`Errors`$ConfigureError = exitCode["StandardError"];
 			Message[ConfigureJupyter::removenotremoved];
 			Return[$Failed];
 		];
@@ -217,7 +217,7 @@ addKernelToJupyter[jupyterPath_String, mathB_String] :=
 					"install",
 					"--user",
 					tempDir
-				}, "ExitCode", ProcessEnvironment -> processEnvironment];
+				}, All, ProcessEnvironment -> processEnvironment];
 
 		(* DeleteDirectory[tempDir, DeleteContents -> True]; *)
 		DeleteDirectory[DirectoryName[tempDir], DeleteContents -> True];
@@ -234,7 +234,7 @@ addKernelToJupyter[jupyterPath_String, mathB_String] :=
 				(* kernelUUID *)
 				globalKernelUUID
 			],
-			WolframLanguageForJupyter`ConfigureError = exitCode["StandardError"];
+			WolframLanguageForJupyter`Errors`$ConfigureError = exitCode["StandardError"];
 			Message[ConfigureJupyter::addnotadded];
 			Return[$Failed];
 		];

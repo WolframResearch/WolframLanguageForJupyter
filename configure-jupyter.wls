@@ -217,7 +217,7 @@ removeKernelFromJupyter[jupyterPath_String (*, kernelUUID_String *)] :=
 			processEnvironment["PATH"] = StringJoin[Environment["PATH"], pathSeperator, DirectoryName[jupyterPath]];
 
 		exitCodeOld = RunProcess[{jupyterPath, "kernelspec", "remove", "-f", hashedKernelUUID}, "ExitCode", ProcessEnvironment -> processEnvironment];
-		exitCode = RunProcess[{jupyterPath, "kernelspec", "remove", "-f", globalKernelUUID}, "ExitCode", ProcessEnvironment -> processEnvironment];
+		exitCode = RunProcess[{jupyterPath, "kernelspec", "remove", "-f", globalKernelUUID}, All, ProcessEnvironment -> processEnvironment];
 
 		kernelspecAssoc = getKernelspecAssoc[jupyterPath];
 		If[
