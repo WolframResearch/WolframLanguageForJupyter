@@ -169,6 +169,8 @@ removeKernelFromJupyter[jupyterPath_String (*, kernelUUID_String *)] :=
 		Return[Success["ConfiguredJupyter", <|"Message" -> "\"Wolfram Language for Jupyter\" has been removed from Jupyter"|>]];
 	];
 
+removeKernelFromJupyter[jupyterPath_String, ___] := removeKernelFromJupyter[jupyterPath];
+
 addKernelToJupyter[jupyterPath_String, mathB_String] := 
 	Module[{baseDir, tempDir, exitCode, kernelspecAssoc, kernelspecs, kernelUUID, fileType},
 		If[
@@ -247,6 +249,21 @@ addKernelToJupyter[jupyterPath_String, mathB_String] :=
 		(* Return[kernelUUID]; *)
 		Return[Success["ConfiguredJupyter", <|"Message" -> "\"Wolfram Language for Jupyter\" has been added to Jupyter"|>]];
 	];
+
+ConfigureJupyter[
+		arg1_,
+		arg2:KeyValuePattern[{}],
+		argsRest___,
+		opts:OptionsPattern[] /; Length[{opts}] > 0
+	] := ConfigureJupyter[
+			arg1,
+			Merge[{arg2, Association[opts]}, Last],
+			argsRest
+		];
+ConfigureJupyter[
+		args___,
+		opts:OptionsPattern[] /; Length[{opts}] > 0
+	] := ConfigureJupyter[args, Association[opts]];
 
 ConfigureJupyter["add"] := addKernelToJupyter[];
 ConfigureJupyter["add", KeyValuePattern[{"WolframEngineBinary" -> wl_String, "JupyterInstallation" -> jup_String}]] := 
