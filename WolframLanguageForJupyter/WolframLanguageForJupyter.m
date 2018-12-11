@@ -213,7 +213,7 @@ addKernelToJupyter[jupyterPath_String, mathB_String] :=
 		Export[
 			FileNameJoin[{tempDir, "kernel.json"}], 
 			Association[
-				"argv" -> {mathB, "-script", FileNameJoin[{pacletHome, "Resources", "kernel.wl"}], "{connection_file}"},
+				"argv" -> {mathB, "-script", FileNameJoin[{pacletHome, "Resources", "KernelForWolframLanguageForJupyter.wl"}], "{connection_file}"},
 				"display_name" -> displayName,
 				"language" -> "Wolfram Language"
 			]

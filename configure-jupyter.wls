@@ -68,7 +68,7 @@ getNames[mathB_String, wasProvided_?BooleanQ] :=
 	];
 
 projectHome = Directory[];
-kernelScript = FileNameJoin[{projectHome, "WolframLanguageForJupyter", "Resources", "kernel.wl"}];
+kernelScript = FileNameJoin[{projectHome, "WolframLanguageForJupyter", "Resources", "KernelForWolframLanguageForJupyter.wl"}];
 If[
 	!(FileType[kernelScript] === File),
 	Print[nopaclet];
