@@ -68,6 +68,7 @@ Print[args___, opts:OptionsPattern[]] :=
 					Import[$Output[[1,1]], "String"]
 				];
 		];
+		Close[First[$Output]];
 		Null
 	] /; !TrueQ[$inPrint];
 
@@ -167,7 +168,7 @@ getFrameAssoc[frame_Association, replyType_String, replyContent_String, branchOf
 	header = frame["header"];
 	content = frame["content"];
 
-	AssociateTo[res, {"header" -> Association[ImportString[header, "JSON"]], "content" -> Association[ImportString[content, "JSON"]]}];
+	AssociateTo[res, {"header" -> Association[ImportByteArray[StringToByteArray[header], "JSON"]], "content" -> Association[ImportByteArray[StringToByteArray[content], "JSON"]]}];
 	AssociateTo[
 		res, 
 		"replyMsg" -> 
@@ -305,7 +306,7 @@ jupyterEvaluationLoop[] :=
 						frameAssoc["header"]["msg_type"], 
 						"kernel_info_request",
 						replyMsgType = "kernel_info_reply";
-						replyContent = "{\"protocol_version\":\"5.3.0\",\"implementation\":\"WL\"}";,
+					replyContent = "{\"protocol_version\": \"5.3.0\",\"implementation\": \"WolframLanguageForJupyter\",\"implementation_version\": \"0.0.1\",\"language_info\": {\"name\": \"Wolfram Language\",\"version\": \"12.0\",\"mimetype\": \"application/vnd.wolfram.m\",\"file_extension\": \".m\",\"pygments_lexer\": \"python\",\"codemirror_mode\": \"python\"},\"banner\" : \"Mathematica Copyright 2018\"}";,
 						"is_complete_request",
 						(* Add syntax-Q checking *)
 						replyMsgType = "is_complete_reply";
