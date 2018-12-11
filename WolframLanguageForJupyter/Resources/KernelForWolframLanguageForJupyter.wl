@@ -68,7 +68,6 @@ Print[args___, opts:OptionsPattern[]] :=
 					Import[$Output[[1,1]], "String"]
 				];
 		];
-		Close[First[$Output]];
 		Null
 	] /; !TrueQ[$inPrint];
 

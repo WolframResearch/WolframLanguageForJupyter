@@ -9,7 +9,7 @@ notadded = "install.wls: An error has occurred. There is still no Wolfram Langua
 notremoved = "install.wls: An error has occurred. There is a Wolfram Language kernel still in \"jupyter kernelspec list.\"";
 nopaclet = "install.wls: WolframLanguageForJupyter paclet source not detected. Are you running the script in the root project directory?";
 
-(* globalKernelUUID = "11a8cf20-da0e-4976-83e5-27579d6360b3"; *)
+
 hashedKernelUUID = Hash[$InstallationDirectory, "SHA", "HexString"];
 names = StringCases[$Version, name___ ~~ " for " ~~ ("Mac" | "Microsoft" | "Windows" | "Linux") -> name];
 If[Length[names] > 0, 
@@ -33,7 +33,7 @@ If[Length[names] > 0,
 ];
 
 projectHome = Directory[];
-kernelScript = FileNameJoin[{projectHome, "WolframLanguageForJupyter", "Resources", "kernel.wl"}];
+kernelScript = FileNameJoin[{projectHome, "WolframLanguageForJupyter", "Resources", "KernelForWolframLanguageForJupyter.wl"}];
 If[
 	!FileExistsQ[kernelScript],
 	Print[nopaclet];
@@ -144,7 +144,7 @@ getKernelspecAssoc[jupyterPath_String] :=
 
 addKernelToJupyter[jupyterPath_String] := addKernelToJupyter[jupyterPath, mathBin];
 
-removeKernelFromJupyter[jupyterPath_String (*, kernelUUID_String *)] := 
+removeKernelFromJupyter[jupyterPath_Strings] := 
 	Module[{exitCodeOld, exitCode, kernelspecAssoc, kernelspecs, oldEnv},
 		If[DirectoryQ[jupyterPath],
 			Print[isdir];
@@ -170,7 +170,7 @@ removeKernelFromJupyter[jupyterPath_String (*, kernelUUID_String *)] :=
 
 		If[MemberQ[
 				kernelspecs,
-				(* kernelUUID *)
+				
 				globalKernelUUID
 			],
 			Print[notremoved];
@@ -179,7 +179,7 @@ removeKernelFromJupyter[jupyterPath_String (*, kernelUUID_String *)] :=
 
 		SetEnvironment["PATH" -> oldEnv];
 
-		(* Return[kernelUUID]; *)
+		
 	];
 
 addKernelToJupyter[jupyterPath_String, mathB_String] := 
@@ -210,7 +210,7 @@ addKernelToJupyter[jupyterPath_String, mathB_String] :=
 					FileNameJoin[{
 						projectHome,
 						kernelUUID,
-						(* Could Remove this part so that every evalution of addKernelToJupyter adds a new kernel with a different uuid *)
+						
 						globalKernelUUID
 					}], CreateIntermediateDirectories -> True
 				];
@@ -229,7 +229,7 @@ addKernelToJupyter[jupyterPath_String, mathB_String] :=
 					tempDir
 				}, "ExitCode"];
 
-		(* DeleteDirectory[tempDir, DeleteContents -> True]; *)
+		
 		DeleteDirectory[DirectoryName[tempDir], DeleteContents -> True];
 
 		kernelspecAssoc = getKernelspecAssoc[jupyterPath];
@@ -241,7 +241,7 @@ addKernelToJupyter[jupyterPath_String, mathB_String] :=
 
 		If[!MemberQ[
 				kernelspecs,
-				(* kernelUUID *)
+				
 				globalKernelUUID
 			],
 			Print[notadded];
@@ -250,7 +250,7 @@ addKernelToJupyter[jupyterPath_String, mathB_String] :=
 
 		SetEnvironment["PATH" -> oldEnv];
 
-		(* Return[kernelUUID]; *)
+		
 	];
 
 templateJupyterPath = FileNameJoin[{"path", "to", "Jupyter", "binary"}];
