@@ -233,7 +233,7 @@ removeKernelFromJupyter[jupyterPath_String (*, kernelUUID_String *)] :=
 			],
 			Print[notremoved];
 			Print["configure-jupyter.wls: See below for the message that Jupyter returned when attempting to remove the Wolfram Engine."];
-			Print[exitCode["StandardError"]];
+			Print[StringTrim[exitCode["StandardError"], Whitespace]];
 			Return[$Failed];
 		];
 
@@ -314,7 +314,7 @@ addKernelToJupyter[jupyterPath_String, mathB_String] :=
 			],
 			Print[notadded];
 			Print["configure-jupyter.wls: See below for the message that Jupyter returned when attempting to add the Wolfram Engine."];
-			Print[exitCode["StandardError"]];
+			Print[StringTrim[exitCode["StandardError"], Whitespace]];
 			Return[$Failed];
 		];
 
@@ -339,7 +339,7 @@ helpMessage = StringJoin[
 				"configure-jupyter.wls add ", templateWLPath, " ", templateJupyterPath, "\n",
 				"\tadds the provided absolute Wolfram Engine binary path to the provided Jupyter binary path\n",
 				"configure-jupyter.wls remove [", templateJupyterPath ,"]\n",
-				"\tremoves any Wolfram Engines found on a Jupyter binary on PATH, or optional provided Jupyter binary path",
+				"\tremoves any Wolfram Engines found on a Jupyter binary on PATH, or optional provided Jupyter binary path\n",
 				"configure-jupyter.wls build\n",
 				"\tbuilds the WolframLanguageForJupyter paclet in the project directory"
 			];
