@@ -265,6 +265,7 @@ ConfigureJupyter[
 		opts:OptionsPattern[] /; Length[{opts}] > 0
 	] := ConfigureJupyter[args, Association[opts]];
 
+ConfigureJupyter["Add", args___] := ConfigureJupyter["add", args];
 ConfigureJupyter["add"] := addKernelToJupyter[];
 ConfigureJupyter["add", KeyValuePattern[{"WolframEngineBinary" -> wl_String, "JupyterInstallation" -> jup_String}]] := 
 	addKernelToJupyter[jup, wl];
@@ -285,6 +286,7 @@ ConfigureJupyter["add", KeyValuePattern[{"WolframEngineBinary" -> wl_String}]] :
 ConfigureJupyter["add", KeyValuePattern[{"JupyterInstallation" -> jup_String}]] := addKernelToJupyter[jup];
 ConfigureJupyter["add", KeyValuePattern[{}]] := addKernelToJupyter[];
 
+ConfigureJupyter["Remove", args___] := ConfigureJupyter["remove", args];
 ConfigureJupyter["remove"] := removeKernelFromJupyter[];
 ConfigureJupyter["remove", KeyValuePattern[{"WolframEngineBinary" -> wl_String, "JupyterInstallation" -> jup_String}]] :=
 	removeKernelFromJupyter[jup, wl];
