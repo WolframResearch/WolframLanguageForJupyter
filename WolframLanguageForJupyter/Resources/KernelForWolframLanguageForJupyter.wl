@@ -306,7 +306,7 @@ jupyterEvaluationLoop[] :=
 						frameAssoc["header"]["msg_type"], 
 						"kernel_info_request",
 						replyMsgType = "kernel_info_reply";
-					replyContent = "{\"protocol_version\": \"5.3.0\",\"implementation\": \"WolframLanguageForJupyter\",\"implementation_version\": \"0.0.1\",\"language_info\": {\"name\": \"Wolfram Language\",\"version\": \"12.0\",\"mimetype\": \"application/vnd.wolfram.m\",\"file_extension\": \".m\",\"pygments_lexer\": \"python\",\"codemirror_mode\": \"python\"},\"banner\" : \"Mathematica Copyright 2018\"}";,
+					replyContent = "{\"protocol_version\": \"5.3.0\",\"implementation\": \"WolframLanguageForJupyter\",\"implementation_version\": \"0.0.1\",\"language_info\": {\"name\": \"Wolfram Language\",\"version\": \"12.0\",\"mimetype\": \"application/vnd.wolfram.m\",\"file_extension\": \".m\",\"pygments_lexer\": \"python\",\"codemirror_mode\": \"python\"},\"banner\" : \"Wolfram Language/Wolfram Engine Copyright 2019\"}";,
 						"is_complete_request",
 						(* Add syntax-Q checking *)
 						replyMsgType = "is_complete_reply";

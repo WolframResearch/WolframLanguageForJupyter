@@ -1,8 +1,8 @@
 BeginPackage["WolframLanguageForJupyter`"];
 
 ConfigureJupyter::subcommand = "The first argument to ConfigureJupyter is the subcommand: either \"add\" or \"remove\".";
-ConfigureJupyter::configuredetails = "The optional second argument to ConfigureJupyter is an association or list of rules specifying details for configuring Jupyter.";
-ConfigureJupyter::argx = "ConfigureJupyter called with `1` arguments; 1 or 2 arguments are expected.";
+(* ConfigureJupyter::configuredetails = "The optional second argument to ConfigureJupyter is an association or list of rules specifying details for configuring Jupyter."; *)
+ConfigureJupyter::argx = "ConfigureJupyter called with `1` arguments; 1 argument is expected.";
 
 ConfigureJupyter::addnotfound = "Jupyter installation on Environment[\"PATH\"] not found.";
 ConfigureJupyter::addisdir = "Provided `1` binary path is a directory. Please provide the path to the `1` binary.";
@@ -16,7 +16,7 @@ ConfigureJupyter::removenotremoved = "An error has occurred. There is a Wolfram 
 
 ConfigureJupyter::usage = 
 	"ConfigureJupyter[subcommand:\"add\"|\"remove\"] evaluates the action associated with subcommand, relying on the current Wolfram Engine binary path and the first Jupyter installation on Environment[\"PATH\"] when relevant.
-ConfigureJupyter[subcommand:\"add\"|\"remove\", assoc] evaluates the action associated with subcommand, using specified paths for \"WolframEngineBinary\" and \"JupyterInstallation\" when given as key-value pairs in assoc.";
+ConfigureJupyter[subcommand:\"add\"|\"remove\", opts] evaluates the action associated with subcommand, using specified paths for \"WolframEngineBinary\" and \"JupyterInstallation\" when given as options.";
 
 Begin["`Private`"];
 
@@ -307,7 +307,7 @@ ConfigureJupyter["remove", KeyValuePattern[{}]] := removeKernelFromJupyter[];
 
 ConfigureJupyter[sc_String, ___] /; !StringMatchQ[sc, "add" | "remove"] := Message[ConfigureJupyter::subcommand];
 ConfigureJupyter[Except[_String], ___] := Message[ConfigureJupyter::subcommand];
-ConfigureJupyter[_, Except[KeyValuePattern[{}]], ___] := Message[ConfigureJupyter::configuredetails];
+(* ConfigureJupyter[_, Except[KeyValuePattern[{}]], ___] := Message[ConfigureJupyter::configuredetails]; *)
 ConfigureJupyter[args___] := Message[ConfigureJupyter::argx, Length[{args}]];
 
 End[];
