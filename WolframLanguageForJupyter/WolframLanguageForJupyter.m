@@ -307,7 +307,7 @@ ConfigureJupyter["remove", KeyValuePattern[{"WolframEngineBinary" -> wl_String}]
 ConfigureJupyter["remove", KeyValuePattern[{"JupyterInstallation" -> jup_String}]] := removeKernelFromJupyter[jup];
 ConfigureJupyter["remove", KeyValuePattern[{}]] := removeKernelFromJupyter[];
 
-ConfigureJupyter[sc_String, ___] /; !StringMatchQ[sc, "add" | "remove"] := Message[ConfigureJupyter::subcommand];
+ConfigureJupyter[sc_String, ___] /; !StringMatchQ[sc, "add" | "remove" | "Add" | "Remove"] := Message[ConfigureJupyter::subcommand];
 ConfigureJupyter[Except[_String], ___] := Message[ConfigureJupyter::subcommand];
 ConfigureJupyter[_, Except[KeyValuePattern[{}]], ___] := Message[ConfigureJupyter::configuredetails];
 ConfigureJupyter[args___] := Message[ConfigureJupyter::argx, Length[{args}]];
