@@ -39,7 +39,7 @@ You can download the latest version of the paclet here:
 
 https://github.com/WolframResearch/WolframLanguageForJupyter/releases
 
-To install the paclet, run the following command (replaceing x,y, and z with the correct values):
+To install the paclet, run the following command (replacing x, y, and z with the correct values):
 
 	PacletInstall["WolframLanguageForJupyter-x.y.z.paclet"]
 
