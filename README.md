@@ -7,7 +7,7 @@ Jupyter provides a protocol (ZMQ) to connect their notebooks to various language
 On your machine, you will need:
 
 * Jupyter
-* Wolfram Engine, from a Wolfram Desktop or Mathematica installation
+* Wolfram Engine, i.e., a Wolfram Desktop or Mathematica installation
 * Optional, but recommended: `wolframscript`
 
 # Installation
