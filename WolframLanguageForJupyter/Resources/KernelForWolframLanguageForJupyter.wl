@@ -91,21 +91,29 @@ SetAttributes[jupEval, HoldAll];
 
 (* END: Evaluation Helper Functions *)
 
+If[TrueQ[$VersionNumber < 12.0],
+	Options[socketWriteFunction] = {"Asynchronous"->False,"Multipart"->False};
+	socketWriteFunction[sock_, data_List, opts:OptionsPattern[]] := ZeroMQLink`Private`ZMQWriteInternal[sock, data, opts];
+	socketWriteFunction[sock_, data_ByteArray, rest___]:= socketWriteFunction[sock, Normal[data], rest]
+	,
+	socketWriteFunction = ZeroMQLink`ZMQSocketWriteMessage
+];
+
 sendFrame[socket_, frame_Association] := Module[{},
 
-	ZeroMQLink`ZMQSocketWriteMessage[
+	socketWriteFunction[
 		socket, 
 		frame["ident"],
 		"Multipart" -> True
 	];
 
-	ZeroMQLink`ZMQSocketWriteMessage[
+	socketWriteFunction[
 		socket, 
 		StringToByteArray[#1],
 		"Multipart" -> True
 	]& /@ Lookup[frame, {"idsmsg", "signature", "header", "pheader", "metadata"}];
 
-	ZeroMQLink`ZMQSocketWriteMessage[
+	socketWriteFunction[
 		socket, 
 		StringToByteArray[frame["content"]],
 		"Multipart" -> False
@@ -250,7 +258,7 @@ heldLocalSubmit = Replace[Hold[LocalSubmit[
 			FailureQ[heartbeatRecv],
 			Continue[];
 		];
-		ZeroMQLink`ZMQSocketWriteMessage[
+		socketWriteFunction[
 			heartbeatSocket, 
 			heartbeatRecv,
 			"Multipart" -> False
