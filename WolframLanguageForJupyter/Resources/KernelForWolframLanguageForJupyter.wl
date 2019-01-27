@@ -74,13 +74,13 @@ Print[args___, opts:OptionsPattern[]] :=
 
 Protect[Print];
 
-jupEval[expr_] := Module[{$oldMessages, stream, msgs, eval, evalExpr},
+jupEval[expr___] := Module[{$oldMessages, stream, msgs, eval, evalExpr},
 	eval = Association[];
 	$oldMessages = $Messages;
 	stream = OpenWrite[];
 	Unprotect[$MessageList]; $MessageList = {}; Protect[$MessageList];
 	$Messages = {stream};
-	evalExpr = expr;
+	evalExpr = {expr};
 	$Messages = $oldMessages;
 	msgs = Import[stream[[1]], "String"];
 	Close[stream];
@@ -388,7 +388,7 @@ jupyterEvaluationLoop[] :=
 																	"<pre style=\"",
 																	StringJoin[{"&#",ToString[#1], ";"} & /@ ToCharacterCode["font-family: \"Courier New\",Courier,monospace;"]], 
 																	"\">",
-																	StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode[ToString[$res]]],
+																	StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode[StringTrim[ToString[$res], "{" | "}"]]],
 																	"</pre></div>"
 																]
 													},
@@ -415,7 +415,11 @@ jupyterEvaluationLoop[] :=
 																	"<img alt=\"Output\" src=\"data:image/png;base64,",
 																	BaseEncode[
 																		ExportByteArray[
-																			If[Head[$res] === Manipulate, $res, Rasterize[$res]],
+																			If[
+																				Length[$res] == 1,
+																				If[Head[First[$res]] === Manipulate, First[$res], Rasterize[First[$res]]],
+																				Rasterize[$res]
+																			],
 																			"PNG"
 																		]
 																	],
