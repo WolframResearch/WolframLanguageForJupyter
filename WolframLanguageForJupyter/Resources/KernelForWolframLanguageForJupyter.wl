@@ -278,6 +278,27 @@ If[FailureQ[ioPubSocket] || FailureQ[controlSocket] || FailureQ[inputSocket] || 
 	Quit[];
 ];
 
+toOutText[output_] := 
+	StringJoin[
+		"<pre style=\"",
+		StringJoin[{"&#",ToString[#1], ";"} & /@ ToCharacterCode["font-family: \"Courier New\",Courier,monospace;"]], 
+		"\">",
+		StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode[ToString[output]]],
+		"</pre>"
+	];
+
+toOutImage[output_] := 
+	StringJoin[
+		"<img alt=\"Output\" src=\"data:image/png;base64,",
+		BaseEncode[
+			ExportByteArray[
+				If[Head[output] === Manipulate, output, Rasterize[output]],
+				"PNG"
+			]
+		],
+		"\">"
+	];
+
 jupyterEvaluationLoop[] :=
 	Block[{srm = ByteArray[{}], printFunction = Function[#;]},
 		Module[
@@ -294,7 +315,10 @@ jupyterEvaluationLoop[] :=
 
 				executionCount,
 				ioPubReplyFrame,
-				doShutdown
+				doShutdown,
+
+				errorMessage,
+				toOut
 			},
 
 			executionCount = 1;
@@ -370,67 +394,63 @@ jupyterEvaluationLoop[] :=
 												];
 							,
 							If[doText[$res],
-								ioPubReplyContent = ExportString[
-									Association[
-										"execution_count" -> executionCount, 
-										"data" -> {"text/html" -> StringJoin[
-																	"<div>",
-																	If[StringLength[$msgs] == 0,
-																		{},
-																		{
-																			"<pre style=\"",
-																			StringJoin[{"&#",ToString[#1], ";"} & /@ ToCharacterCode["color:red; font-family: \"Courier New\",Courier,monospace;"]], 
-																			"\">",
-																			StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode[$msgs]],
-																			"</pre>"
+								toOut = toOutText;,
+								toOut = toOutImage;
+							];
+							errorMessage = 	If[StringLength[$msgs] == 0,
+								{},
+								{
+									"<pre style=\"",
+									StringJoin[{"&#",ToString[#1], ";"} & /@ ToCharacterCode["color:red; font-family: \"Courier New\",Courier,monospace;"]], 
+									"\">",
+									StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode[$msgs]],
+									"</pre>"
+								}
+							];
+							ioPubReplyContent = ExportString[
+								Association[
+									"execution_count" -> executionCount, 
+									"data" -> {"text/html" -> 
+															If[
+																Length[$res] > 1,
+																StringJoin[
+																	"<style>
+																		.grid-container {
+																			display: inline-grid;
+																			grid-template-columns: auto auto;
 																		}
-																	],
-																	"<pre style=\"",
-																	StringJoin[{"&#",ToString[#1], ";"} & /@ ToCharacterCode["font-family: \"Courier New\",Courier,monospace;"]], 
-																	"\">",
-																	StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode[StringTrim[ToString[$res], "{" | "}"]]],
-																	"</pre></div>"
-																]
-													},
-										"metadata" -> {"text/html" -> {}}
-									],
-									"JSON",
-									"Compact" -> True
-								];,
-								ioPubReplyContent = ExportString[
-									Association[
-										"execution_count" -> executionCount,
-										"data" -> {"text/html" -> StringJoin[
-																	"<div>",
-																	Sequence @@ If[StringLength[$msgs] == 0,
-																		{},
+																	</style>
+
+																	<div>",
+																	errorMessage,
+																	"<div class=\"grid-container\">",
+																	Table[
 																		{
-																			"<pre style=\"",
-																			StringJoin[{"&#",ToString[#1], ";"} & /@ ToCharacterCode["color:red; font-family: \"Courier New\",Courier,monospace;"]], 
-																			"\">",
-																			StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode[$msgs]],
-																			"</pre>"
-																		}
+																			"<div class=\"grid-item\">
+																				<div class=\"prompt output_prompt\" style=\"text-align:left;padding:0em;padding-right:20px;line-height:20px;\">
+																					Out[", ToString[outIndex],"/", ToString[Length[$res]], "]:
+																				</div>
+																			</div>
+																			<div class=\"grid-item\">",
+																			toOut[$res[[outIndex]]],
+																			"</div>"
+																		},
+																		{outIndex, 1, Length[$res]}
 																	],
-																	"<img alt=\"Output\" src=\"data:image/png;base64,",
-																	BaseEncode[
-																		ExportByteArray[
-																			If[
-																				Length[$res] == 1,
-																				If[Head[First[$res]] === Manipulate, First[$res], Rasterize[First[$res]]],
-																				Rasterize[$res]
-																			],
-																			"PNG"
-																		]
-																	],
-																	"\"></div>"
+																	"</div></div>"
+																],
+																StringJoin[
+																	"<div>",
+																	errorMessage,
+																	toOut[First[$res]],
+																	"</div>"
 																]
-													},
-										"metadata" -> {"text/html" -> {}}
-									],
-									"JSON",
-									"Compact" -> True
-								];
+															]
+												},
+									"metadata" -> {"text/html" -> {}}
+								],
+								"JSON",
+								"Compact" -> True
 							];
 						];
 
