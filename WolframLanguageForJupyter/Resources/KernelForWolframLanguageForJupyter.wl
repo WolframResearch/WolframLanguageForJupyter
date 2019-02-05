@@ -253,6 +253,7 @@ heldLocalSubmit = Replace[Hold[LocalSubmit[
 	];
 	While[
 		True,
+		SocketWaitNext[{heartbeatSocket}];
 		heartbeatRecv = SocketReadMessage[heartbeatSocket];
 		If[
 			FailureQ[heartbeatRecv],
