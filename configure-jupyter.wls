@@ -10,6 +10,7 @@ nobinMath = "configure-jupyter.wls: Provided Wolfram Engine binary path does not
 notadded = "configure-jupyter.wls: An error has occurred. The desired Wolfram Engine is not in \"jupyter kernelspec list.\"";
 notremoved = "configure-jupyter.wls: An error has occurred: Wolfram Engine(s) still in \"jupyter kernelspec list.\"";
 nopaclet = "configure-jupyter.wls: WolframLanguageForJupyter paclet source not detected. Are you running the script in the root project directory?";
+nolink = "configure-jupyter.wls: Communication with provided Wolfram Engine binary could not be established.";
 
 (* START: Helper symbols  *)
 
@@ -18,9 +19,9 @@ projectHome = DirectoryName[$InputFileName];
 (* establishes link with Wolfram Engine at mathB and evaluates $Version *)
 getVersionFromKernel[mathB_String] :=
 	Module[{link, res},
-		link = LinkLaunch[First[$CommandLine] <> " -wstp"];
+		link = LinkLaunch[mathB <> " -wstp"];
 		If[FailureQ[link],
-			Return["$Failed"];
+			Return[$Failed];
 		];
 		LinkRead[link];
 		LinkWrite[link, Unevaluated[$Version]];
@@ -28,7 +29,7 @@ getVersionFromKernel[mathB_String] :=
 		LinkClose[link];
 		If[!StringContainsQ[res, "[" | "]"],
 			Return[res];,
-			Return["$Failed"];
+			Return[$Failed];
 		];
 	];
 
@@ -41,7 +42,11 @@ getNames[mathB_String, notProvidedQ_?BooleanQ] :=
 			version = $Version;
 			installDir = $InstallationDirectory;
 			,
-			version = getVersionFromKernel[mathB];
+			version = Quiet[getVersionFromKernel[mathB]];
+			If[
+				FailureQ[version],
+				Return[$Failed];
+			];
 			installDir = mathB;
 		];
 
@@ -84,6 +89,7 @@ defineGlobalVars[] :=
 		pathSeperator = ":";,
 		"Unix",
 		mathBin = FileNameJoin[{$InstallationDirectory, "MacOS", "Kernel", "Binaries", $SystemID, "WolframKernel"}];
+		(* mathBin = FileNameJoin[{$InstallationDirectory, "Executables", "WolframKernel"}]; *)
 		fileExt = "";
 		pathSeperator = ":";
 	];
@@ -149,7 +155,7 @@ configureJupyter[specs_Association, removeQ_?BooleanQ, removeAllQ_?BooleanQ] :=
 	Module[
 		{
 			kernelScript,
-			kernelUUID, displayName,
+			retrievedNames, kernelUUID, displayName,
 			notProvidedQ,
 			jupyterPath, mathB,
 			fileType,
@@ -165,7 +171,7 @@ configureJupyter[specs_Association, removeQ_?BooleanQ, removeAllQ_?BooleanQ] :=
 		If[
 			!(FileType[kernelScript] === File),
 			Print[nopaclet];
-			Quit[];
+			Return[$Failed];
 		];
 
 		jupyterPath = specs["JupyterInstallation"];
@@ -201,7 +207,9 @@ configureJupyter[specs_Association, removeQ_?BooleanQ, removeAllQ_?BooleanQ] :=
 			!(removeQ && removeAllQ),
 			If[
 				(fileType = FileType[mathB]) === File,
-				{kernelUUID, displayName} = getNames[mathB, TrueQ[notProvidedQ]];,
+				retrievedNames = getNames[mathB, TrueQ[notProvidedQ]];
+				If[FailureQ[retrievedNames], Print[nolink]; Return[$Failed]];
+				{kernelUUID, displayName} = retrievedNames;,
 				Switch[
 					fileType,
 					Directory,
@@ -235,7 +243,7 @@ configureJupyter[specs_Association, removeQ_?BooleanQ, removeAllQ_?BooleanQ] :=
 			Export[
 				FileNameJoin[{tempDir, "kernel.json"}], 
 				Association[
-					"argv" -> {mathB, "-script", kernelScript, "{connection_file}"},
+					"argv" -> {mathB, "-script", kernelScript, "{connection_file}" (* , "-noprompt" *)},
 					"display_name" -> displayName,
 					"language" -> "Wolfram Language"
 				]
@@ -271,11 +279,13 @@ If[
 	(* maybe remove *)
 	If[
 		MemberQ[$CommandLine, "-script"],
-		Print["configure-jupyter.wls: Please use -file instead of -script in WolframScript."];,
+		Print["configure-jupyter.wls: Please use -file instead of -script in WolframScript."];
+		Quit[];
+		,
 		Print["configure-jupyter.wls: An unknown error has occurred."];
 		attemptPathRegeneration[];
+		If[FailureQ[RunProcess[$SystemShell, All, ""]], Quit[]];
 	];
-	Quit[];
 ];
 
 defineGlobalVars[];

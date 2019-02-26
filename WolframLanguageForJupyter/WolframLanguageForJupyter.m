@@ -10,6 +10,8 @@ ConfigureJupyter::nobin = "Provided `1` binary path does not exist.";
 ConfigureJupyter::notadded = "An error has occurred. The desired Wolfram Engine is not in \"jupyter kernelspec list.\" See WolframLanguageForJupyter`.`Errors`.`$ConfigureError for the message that Jupyter returned when attempting to add the Wolfram Engine.";
 ConfigureJupyter::notremoved = "An error has occurred: Wolfram Engine(s) still in \"jupyter kernelspec list.\" See WolframLanguageForJupyter`.`Errors`.`$ConfigureError for the message that Jupyter returned when attempting to remove the Wolfram Engine.";
 
+ConfigureJupyter::nolink = "An error has occurred: Communication with provided Wolfram Engine binary could not be established.";
+
 ConfigureJupyter::usage = 
 	"ConfigureJupyter[subcommand:\"add\"|\"remove\"|\"clear\"] evaluates the action associated with subcommand, relying on the current Wolfram Engine binary path and the first Jupyter installation on Environment[\"PATH\"] when relevant.
 ConfigureJupyter[subcommand:\"add\"|\"remove\"|\"clear\", opts] evaluates the action associated with subcommand, using specified paths for \"WolframEngineBinary\" and \"JupyterInstallation\" when given as options.";
@@ -23,9 +25,9 @@ projectHome = DirectoryName[$InputFileName];
 (* establishes link with Wolfram Engine at mathB and evaluates $Version *)
 getVersionFromKernel[mathB_String] :=
 	Module[{link, res},
-		link = LinkLaunch[First[$CommandLine] <> " -wstp"];
+		link = LinkLaunch[mathB <> " -wstp"];
 		If[FailureQ[link],
-			Return["$Failed"];
+			Return[$Failed];
 		];
 		LinkRead[link];
 		LinkWrite[link, Unevaluated[$Version]];
@@ -33,7 +35,7 @@ getVersionFromKernel[mathB_String] :=
 		LinkClose[link];
 		If[!StringContainsQ[res, "[" | "]"],
 			Return[res];,
-			Return["$Failed"];
+			Return[$Failed];
 		];
 	];
 
@@ -46,7 +48,11 @@ getNames[mathB_String, notProvidedQ_?BooleanQ] :=
 			version = $Version;
 			installDir = $InstallationDirectory;
 			,
-			version = getVersionFromKernel[mathB];
+			version = Quiet[getVersionFromKernel[mathB]];
+			If[
+				FailureQ[version],
+				Return[$Failed];
+			];
 			installDir = mathB;
 		];
 
@@ -89,6 +95,7 @@ defineGlobalVars[] :=
 		pathSeperator = ":";,
 		"Unix",
 		mathBin = FileNameJoin[{$InstallationDirectory, "MacOS", "Kernel", "Binaries", $SystemID, "WolframKernel"}];
+		(* mathBin = FileNameJoin[{$InstallationDirectory, "Executables", "WolframKernel"}]; *)
 		fileExt = "";
 		pathSeperator = ":";
 	];
@@ -151,7 +158,7 @@ getKernels[jupyterPath_String, processEnvironment_] :=
 configureJupyter[specs_Association, removeQ_?BooleanQ, removeAllQ_?BooleanQ] := 
 	Module[
 		{
-			kernelUUID, displayName,
+			retrievedNames, kernelUUID, displayName,
 			notProvidedQ,
 			jupyterPath, mathB,
 			fileType,
@@ -205,7 +212,9 @@ configureJupyter[specs_Association, removeQ_?BooleanQ, removeAllQ_?BooleanQ] :=
 			!(removeQ && removeAllQ),
 			If[
 				(fileType = FileType[mathB]) === File,
-				{kernelUUID, displayName} = getNames[mathB, TrueQ[notProvidedQ]];,
+				retrievedNames = getNames[mathB, TrueQ[notProvidedQ]];
+				If[FailureQ[retrievedNames], Message[ConfigureJupyter::nolink]; Return[$Failed]];
+				{kernelUUID, displayName} = retrievedNames;,
 				Switch[
 					fileType,
 					Directory,
@@ -243,6 +252,7 @@ configureJupyter[specs_Association, removeQ_?BooleanQ, removeAllQ_?BooleanQ] :=
 						"-run",
 						"Get[FileNameJoin[{DirectoryName[FindFile[\"WolframLanguageForJupyter`\"],2],\"Resources\",\"KernelForWolframLanguageForJupyter.wl\"}]]",
 						"{connection_file}"
+						(* , "-noprompt" *)
 					},
 					"display_name" -> displayName,
 					"language" -> "Wolfram Language"
