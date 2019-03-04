@@ -23,9 +23,9 @@ Begin["WolframLanguageForJupyter`Private`"];
 toOutText[output_] := 
 	StringJoin[
 		"<pre style=\"",
-		StringJoin[{"&#",ToString[#1], ";"} & /@ ToCharacterCode["font-family: \"Courier New\",Courier,monospace;"]], 
+		StringJoin[{"&#",ToString[#1], ";"} & /@ ToCharacterCode["font-family: \"Courier New\",Courier,monospace;", "UTF-8"]], 
 		"\">",
-		StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode[ToString[output]]],
+		StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode[ToString[output], "UTF-8"]],
 		"</pre>"
 	];
 
@@ -368,9 +368,9 @@ executeRequestHandler[srm_, frameAssoc_, executionCount_Integer] :=
 				{},
 				{
 					"<pre style=\"",
-					StringJoin[{"&#",ToString[#1], ";"} & /@ ToCharacterCode["color:red; font-family: \"Courier New\",Courier,monospace;"]], 
+					StringJoin[{"&#",ToString[#1], ";"} & /@ ToCharacterCode["color:red; font-family: \"Courier New\",Courier,monospace;", "UTF-8"]], 
 					"\">",
-					StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode[$msgs]],
+					StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode[$msgs, "UTF-8"]],
 					"</pre>"
 				}
 			];
