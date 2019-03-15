@@ -14,7 +14,7 @@ nolink = "configure-jupyter.wls: Communication with provided Wolfram Engine bina
 
 (* START: Helper symbols  *)
 
-projectHome = DirectoryName[$InputFileName];
+projectHome = If[StringQ[$InputFileName] && $InputFileName != "", DirectoryName[$InputFileName], Directory[]];
 
 (* establishes link with Wolfram Engine at mathB and evaluates $Version *)
 getVersionFromKernel[mathB_String] :=
