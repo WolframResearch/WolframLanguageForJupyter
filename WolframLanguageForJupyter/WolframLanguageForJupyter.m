@@ -293,12 +293,12 @@ ConfigureJupyter["add"] := ConfigureJupyter["add", Association[]];
 ConfigureJupyter["add", assoc_Association] := configureJupyter[assoc, False, False];
 
 ConfigureJupyter["Remove", args___] := ConfigureJupyter["remove", args];
-ConfigureJupyter["remove"] := ConfigureJupyter["add", Association[]];
+ConfigureJupyter["remove"] := ConfigureJupyter["remove", Association[]];
 ConfigureJupyter["remove", assoc_Association] := configureJupyter[assoc, True, False];
 
 ConfigureJupyter["Clear", args___] := ConfigureJupyter["clear", args];
-ConfigureJupyter["clear"] := ConfigureJupyter["add", Association[]];
-ConfigureJupyter["clear", assoc_Association] := configureJupyter[assoc, True, False];
+ConfigureJupyter["clear"] := ConfigureJupyter["clear", Association[]];
+ConfigureJupyter["clear", assoc_Association] := configureJupyter[assoc, True, True];
 
 ConfigureJupyter[sc_String, ___] /; !StringMatchQ[sc, "add" | "remove" | "clear" | "Add" | "Remove" | "Clear"] := Message[ConfigureJupyter::subcommand];
 ConfigureJupyter[Except[_String], ___] := Message[ConfigureJupyter::subcommand];
