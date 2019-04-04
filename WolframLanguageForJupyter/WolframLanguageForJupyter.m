@@ -10,6 +10,9 @@ ConfigureJupyter::nobin = "Provided `1` binary path does not exist.";
 ConfigureJupyter::notadded = "An error has occurred. The desired Wolfram Engine is not in \"jupyter kernelspec list.\" See WolframLanguageForJupyter`.`Errors`.`$ConfigureError for the message that Jupyter returned when attempting to add the Wolfram Engine.";
 ConfigureJupyter::notremoved = "An error has occurred: Wolfram Engine(s) still in \"jupyter kernelspec list.\" See WolframLanguageForJupyter`.`Errors`.`$ConfigureError for the message that Jupyter returned when attempting to remove the Wolfram Engine.";
 
+ConfigureJupyter::addconflict = "An error has occurred. A Wolfram Engine with the same $VersionNumber of the target Wolfram Engine is in \"jupyter kernelspec list.\" Attempting to overwrite ...";
+(* ConfigureJupyter::removeconflict = "An error has occurred. The Wolfram Engine(s) to be removed is/are not in \"jupyter kernelspec list.\""; *)
+
 ConfigureJupyter::nolink = "An error has occurred: Communication with provided Wolfram Engine binary could not be established.";
 
 ConfigureJupyter::usage = 
@@ -18,19 +21,37 @@ ConfigureJupyter[subcommand:\"add\"|\"remove\"|\"clear\", opts] evaluates the ac
 
 Begin["`Private`"];
 
+(*
+	Dictionary:
+		mathBin/mathBinSession = WolframKernel binary
+		kernelspec = Kernel Specification; term used by Jupyter
+		notProvidedQ = was a Wolfram Engine Binary explicitly specified?
+*)
+
 (* START: Helper symbols  *)
 
 projectHome = DirectoryName[$InputFileName];
 
-(* establishes link with Wolfram Engine at mathB and evaluates $Version *)
-getVersionFromKernel[mathB_String] :=
+(* establishes link with Wolfram Engine at mathBin and evaluates $Version/$VersionNumber *)
+(* returns string form *)
+getVersionFromKernel[mathBin_String] :=
 	Module[{link, res},
-		link = LinkLaunch[mathB <> " -wstp"];
+		link = 
+			LinkLaunch[
+				StringJoin[
+					{
+						"\"",
+						mathBin,
+						"\" -wstp"
+					}
+				]
+			];
 		If[FailureQ[link],
 			Return[$Failed];
 		];
-		LinkRead[link];
-		LinkWrite[link, Unevaluated[$Version]];
+		(* bleed link *)
+		While[LinkReadyQ[link, 0.5], LinkRead[link];];
+		LinkWrite[link, Unevaluated[$VersionNumber]];
 		res = StringTrim[ToString[LinkRead[link]], "ReturnPacket[" | "]"];
 		LinkClose[link];
 		If[!StringContainsQ[res, "[" | "]"],
@@ -39,99 +60,100 @@ getVersionFromKernel[mathB_String] :=
 		];
 	];
 
-(* determine display name for Jupyter installation from Wolfram Engine $Version *)
-getNames[mathB_String, notProvidedQ_?BooleanQ] := 
-	Module[{version, installDir, names, hashedKernelUUID},
-
+(* determine display name for Jupyter installation from Wolfram Engine $Version/$VersionNumber *)
+(* returns {Kernel ID, Display Name} *)
+getNames[mathBin_String, notProvidedQ_?BooleanQ] := 
+	Module[{version, installDir, (* names, hashedKernelUUID *) versionStr},
+		(* if Wolfram Engine binary not provided, just evaluate $Version in the current session *)
+		(* otherwise, use MathLink to obtain $Version *)
 		If[
 			notProvidedQ,
-			version = $Version;
+			version = ToString[$VersionNumber];
 			installDir = $InstallationDirectory;
 			,
-			version = Quiet[getVersionFromKernel[mathB]];
+			version = Quiet[getVersionFromKernel[mathBin]];
 			If[
 				FailureQ[version],
 				Return[$Failed];
 			];
-			installDir = mathB;
+			installDir = mathBin;
 		];
-
-		hashedKernelUUID = StringJoin["wl-", Hash[installDir, "SHA", "HexString"]];
-
-		names = StringCases[version, name___ ~~ " for " ~~ ("Mac" | "Microsoft" | "Windows" | "Linux") -> name];
+		
+		versionStr = StringTrim[version, "."];
 		Return[
-			If[Length[names] > 0, 
-				{
-					ToLowerCase[StringJoin[
-						"WolframLanguage-",
-						StringReplace[First[names], Whitespace -> "-"]
-					]],
-					StringJoin[
-						"Wolfram Language (",
-						Capitalize[
-							First[names],
-							"AllWords"
-						],
-						")"
-					]
-				}
-				,
-				{hashedKernelUUID, "Wolfram Language"}
-			]
+			{
+				(* Kernel ID *)
+				StringJoin["wolframlanguage", versionStr],
+				(* Display Name *)
+				StringJoin["Wolfram Language ", versionStr]
+			}
 		];
 	];
 
 (* determine symbols related to finding Wolfram Engine and Jupyter installations *)
+(* mathBinSession: WolframKernel location for the current session *)
+(* fileExt: file extension for executables *)
+(* pathSeperator: delimiter for directories on PATH *)
 defineGlobalVars[] := 
 	Switch[
 		$OperatingSystem,
 		"Windows",
-		mathBin = FileNameJoin[{$InstallationDirectory, "wolfram.exe"}];
+		mathBinSession = FileNameJoin[{$InstallationDirectory, "wolfram.exe"}];
 		fileExt = ".exe";
 		pathSeperator = ";";,
 		"MacOSX",
-		mathBin = FileNameJoin[{$InstallationDirectory, "MacOS", "WolframKernel"}];
+		mathBinSession = FileNameJoin[{$InstallationDirectory, "MacOS", "WolframKernel"}];
 		fileExt = "";
 		pathSeperator = ":";,
 		"Unix",
-		mathBin = FileNameJoin[{$InstallationDirectory, "MacOS", "Kernel", "Binaries", $SystemID, "WolframKernel"}];
-		(* mathBin = FileNameJoin[{$InstallationDirectory, "Executables", "WolframKernel"}]; *)
+		mathBinSession = FileNameJoin[{$InstallationDirectory, "MacOS", "Kernel", "Binaries", $SystemID, "WolframKernel"}];
+		(* mathBinSession = FileNameJoin[{$InstallationDirectory, "Executables", "WolframKernel"}]; *)
 		fileExt = "";
 		pathSeperator = ":";
 	];
 
-mathBin := (defineGlobalVars[]; mathBin);
+mathBinSession := (defineGlobalVars[]; mathBinSession);
 fileExt := (defineGlobalVars[]; fileExt);
 pathSeperator := (defineGlobalVars[]; pathSeperator);
 
-(* splitPath := StringSplit[Environment["PATH"], pathSeperator]; *)
-splitPath := StringSplit[If[
-	$OperatingSystem === "MacOSX" && FileType["~/.profile"] === File,
-	StringTrim[
-					RunProcess[
-						$SystemShell,
-						"StandardOutput",
-						StringJoin[Import["~/.profile", "String"], "\necho $PATH"],
-						ProcessEnvironment -> {}
-					], 
-					"\n"
-				]
-	,
-	Environment["PATH"]
-], pathSeperator];
+(* a list of directories in PATH *)
+splitPath := 
+	StringSplit[
+		(* restore PATH, if due to a bug, it becomes essentially empty; this is relevant to finding the Jupyter installation *)
+		(* otherwise, just use PATH directly *)
+		If[
+			$OperatingSystem === "MacOSX" && FileType["~/.profile"] === File,
+			StringTrim[
+							RunProcess[
+								$SystemShell,
+								"StandardOutput",
+								StringJoin[Import["~/.profile", "String"], "\necho $PATH"],
+								ProcessEnvironment -> {}
+							], 
+							"\n"
+						]
+			,
+			Environment["PATH"]
+		],
+	pathSeperator];
 
 
 (* find Jupyter installation path *)
+(* returns above *)
 findJupyerPath[] := 
 	SelectFirst[
 		splitPath,
+		(* check every directory in PATH to see if a Jupyter binary is a member *)
 		(FileType[FileNameJoin[{#1, StringJoin["jupyter", fileExt]}]] === File)&
 	];
 
 (* get information about installed kernels in Jupyter *)
+(* returns kernel IDs in Jupyter *)
 getKernels[jupyterPath_String, processEnvironment_] := 
 	Module[{json, kernelspecAssoc},
+		(* obtain information about "jupyter kernelspec list" in JSON *)
 		json = Quiet[ImportString[RunProcess[{jupyterPath, "kernelspec", "list", "--json"}, "StandardOutput", ProcessEnvironment -> processEnvironment], "JSON"]];
+		(* transform that JSON information into an Association *)
 		kernelspecAssoc = 
 			If[
 				FailureQ[json],
@@ -143,6 +165,8 @@ getKernels[jupyterPath_String, processEnvironment_] :=
 				]
 			];
 		Return[
+			(* if the above process worked, just return the kernel IDs of all the kernelspecs *)
+			(* otherwise, return an empty list *)
 			If[
 				KeyExistsQ[kernelspecAssoc, "kernelspecs"],
 				Keys[kernelspecAssoc["kernelspecs"]],
@@ -155,16 +179,21 @@ getKernels[jupyterPath_String, processEnvironment_] :=
 (* END: Helper symbols  *)
 
 (* main install command *)
+(* specs: options \"WolframEngineBinary\" and \"JupyterInstallation\" in an Association, when provided *)
+(* removeQ: remove a Jupyter installation or not *)
+(* removeAllQ: clear all Jupyter installations or not *)
+(* removeQ first, removeAllQ second: "add" is False, False; "remove" is True, False, and "clear" is True, True *)
+(* returns action success status *)
 configureJupyter[specs_Association, removeQ_?BooleanQ, removeAllQ_?BooleanQ] := 
 	Module[
 		{
-			retrievedNames, kernelUUID, displayName,
+			retrievedNames, kernelID, displayName,
 			notProvidedQ,
-			jupyterPath, mathB,
+			jupyterPath, mathBin,
 			fileType,
 			processEnvironment,
 			baseDir, tempDir,
-			wlKernels,
+			wlKernels, (* wlKernelsL(owerCase) *) wlKernelsL,
 			commandArgs,
 			exitInfo, kernelspecAssoc, kernelspecs
 		},
@@ -184,6 +213,7 @@ configureJupyter[specs_Association, removeQ_?BooleanQ, removeAllQ_?BooleanQ] :=
 		If[
 			MissingQ[jupyterPath],
 			jupyterPath = findJupyerPath[];
+			(* if Jupyter not on PATH, message *)
 			If[MissingQ[jupyterPath],
 				Message[ConfigureJupyter::notfound, "Jupyter"];
 				Return[$Failed];
@@ -191,9 +221,15 @@ configureJupyter[specs_Association, removeQ_?BooleanQ, removeAllQ_?BooleanQ] :=
 			jupyterPath = FileNameJoin[{jupyterPath, StringJoin["jupyter", fileExt]}];
 		];
 
-		mathB = Lookup[specs, "WolframEngineBinary", (notProvidedQ = True; mathBin)];
+		mathBin = 
+			Lookup[
+				specs,
+				"WolframEngineBinary",
+				(* if no "WolframEngineBinary" provided, use the session Wolfram Kernel location and set notProvidedQ to True *)
+				(notProvidedQ = True; mathBinSession)
+			];
 
-		(* check that the Jupyter installation path is a file *)
+		(* check that the Jupyter installation path is a file, and message appropriately *)
 		If[
 			!((fileType = FileType[jupyterPath]) === File),
 			Switch[
@@ -206,15 +242,17 @@ configureJupyter[specs_Association, removeQ_?BooleanQ, removeAllQ_?BooleanQ] :=
 			Return[$Failed];
 		];
 
-		{kernelUUID, displayName} = {"", ""};
-		(* check that the Wolfram Engine installation path is a file *)
+		{kernelID, displayName} = {"", ""};
+		(* if not clearing, check that the Wolfram Engine installation path is a file, and message appropriately *)
 		If[
 			!(removeQ && removeAllQ),
 			If[
-				(fileType = FileType[mathB]) === File,
-				retrievedNames = getNames[mathB, TrueQ[notProvidedQ]];
+				(fileType = FileType[mathBin]) === File,
+				(* get the "Kernel ID" and "Display Name" for the new Jupyter kernel *)
+				retrievedNames = getNames[mathBin, TrueQ[notProvidedQ]];
 				If[FailureQ[retrievedNames], Message[ConfigureJupyter::nolink]; Return[$Failed]];
-				{kernelUUID, displayName} = retrievedNames;,
+				{kernelID, displayName} = retrievedNames;
+				,
 				Switch[
 					fileType,
 					Directory,
@@ -230,27 +268,33 @@ configureJupyter[specs_Association, removeQ_?BooleanQ, removeAllQ_?BooleanQ] :=
 			processEnvironment = Association[GetEnvironment[]];
 			processEnvironment["PATH"] = StringJoin[Riffle[Append[splitPath, DirectoryName[jupyterPath]], pathSeperator]];
 
-		wlKernels = {kernelUUID};
+		(* list of kernels in Jupyter to perform an action on *)
+		wlKernels = {kernelID};
 		tempDir = "";
+		(* if adding, ...*)
+		(* otherwise, when removing or clearing, ...*)
 		If[
 			!removeQ,
 
+			(* create staging directory for files needed to register a kernel with Jupyter *)
 			tempDir = CreateDirectory[
 				FileNameJoin[{
 					projectHome,
 					CreateUUID[],
-					(* removing this would cause every evalution of addKernelToJupyter adds a new kernel with a different uuid *)
-					kernelUUID
+					kernelID
 				}], CreateIntermediateDirectories -> True
 			];
 
+			(* export a JSON file to the staging directory that contains all the relevant information on how to run the kernel *)
 			Export[
 				FileNameJoin[{tempDir, "kernel.json"}], 
 				Association[
 					"argv" -> {
-						mathB,
-						"-run",
-						"Get[FileNameJoin[{DirectoryName[FindFile[\"WolframLanguageForJupyter`\"],2],\"Resources\",\"KernelForWolframLanguageForJupyter.wl\"}]]",
+						mathBin,
+						(* TODO: automatically find the kernel script
+							(only) if the Wolfram Engine being installed is the same as the one used to execute this command *)
+						"-script",
+						FileNameJoin[{projectHome, "Resources", "KernelForWolframLanguageForJupyter.wl"}],
 						"{connection_file}"
 						(* , "-noprompt" *)
 					},
@@ -259,23 +303,39 @@ configureJupyter[specs_Association, removeQ_?BooleanQ, removeAllQ_?BooleanQ] :=
 				]
 			];
 
+			(* create a list of arguments that directs Jupyter to install from the staging directory *)
 			commandArgs = {jupyterPath, "kernelspec", "install", "--user", tempDir};,
+			(* create a list of arguments that directs Jupyter to remove ... *)
 			commandArgs = {jupyterPath, "kernelspec", "remove", "-f",
 				If[
 					!removeAllQ,
-					kernelUUID,
-					Sequence @@ (wlKernels = Select[getKernels[jupyterPath, processEnvironment], StringMatchQ[#1, ("wolframlanguage-" | "WL-") ~~ ___] &])
+					(* just the specified kernel *)
+					kernelID,
+					(* all Wolfram Language Jupyter kernels *)
+					(* select from all kernel IDs in Jupyter those that match the form used by this install *)
+					Sequence @@ (wlKernels = Select[getKernels[jupyterPath, processEnvironment], StringMatchQ[#1, (* ("WolframLanguage-" | "wl-") *) "WolframLanguage" ~~ ___, IgnoreCase -> True] &])
 				]
 			}
 		];
-		exitInfo = RunProcess[commandArgs, All, ProcessEnvironment -> processEnvironment];
-
-		If[StringLength[tempDir] > 0, DeleteDirectory[DirectoryName[tempDir], DeleteContents -> True]];
+		(* if no kernels to act on, quit *)
 		If[Length[wlKernels] == 0, Return[];];
+		wlKernelsL = ToLowerCase /@ wlKernels;
 
+		(* for error detection, get a snapshot of kernels before the action is performed *)
 		kernelspecs = getKernels[jupyterPath, processEnvironment];
+		(* when adding, if there is a kernel with the same id already in Jupyter, it will be replaced; thus, message, but continue *)
+		If[SubsetQ[kernelspecs, wlKernelsL] @@ !removeQ, Message[ConfigureJupyter::addconflict]];
+
+		(* perform the action *)
+		exitInfo = RunProcess[commandArgs, All, ProcessEnvironment -> processEnvironment];
+		(* remove temporary directory if it was created *)
+		If[StringLength[tempDir] > 0, DeleteDirectory[DirectoryName[tempDir], DeleteContents -> True]];
+
+		(* get list of kernels after the action was performed *)
+		kernelspecs = getKernels[jupyterPath, processEnvironment];
+		(* message about success with respect to the action that was performed *)
 		If[
-			!Xor[removeQ, SubsetQ[kernelspecs, wlKernels]],
+			!Xor[removeQ, SubsetQ[kernelspecs, wlKernelsL]],
 			WolframLanguageForJupyter`Errors`$ConfigureError = exitInfo["StandardError"];
 			Print[WolframLanguageForJupyter`Errors`$ConfigureError];
 			If[!removeQ, Message[ConfigureJupyter::notadded];, Message[ConfigureJupyter::notremoved];];
@@ -283,11 +343,13 @@ configureJupyter[specs_Association, removeQ_?BooleanQ, removeAllQ_?BooleanQ] :=
 		];
 	];
 
+(* convert options to an Association *)
 ConfigureJupyter[
 		args___,
 		opts:OptionsPattern[] /; Length[{opts}] > 0
 	] := ConfigureJupyter[args, Association[opts]];
 
+(* mold ConfigureJupyter arguments to what is expected by the main install function, configureJupyter ... *)
 ConfigureJupyter["Add", args___] := ConfigureJupyter["add", args];
 ConfigureJupyter["add"] := ConfigureJupyter["add", Association[]];
 ConfigureJupyter["add", assoc_Association] := configureJupyter[assoc, False, False];
