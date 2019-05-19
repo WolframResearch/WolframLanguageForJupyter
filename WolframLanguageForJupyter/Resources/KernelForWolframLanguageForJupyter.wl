@@ -23,8 +23,10 @@ Begin["WolframLanguageForJupyter`Private`"];
 toOutText[output_] := 
 	StringJoin[
 		"<pre style=\"",
-		StringJoin[{"&#",ToString[#1], ";"} & /@ ToCharacterCode["font-family: \"Courier New\",Courier,monospace;", "UTF-8"]], 
+		StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode["font-family: \"Courier New\",Courier,monospace;", "UTF-8"]], 
 		"\">",
+		(* the OutputForm (which ToString uses) of any expressions wrapped with, say, InputForm should
+			be identical to the string result of an InputForm-wrapped expression itself *)
 		StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode[ToString[output], "UTF-8"]],
 		"</pre>"
 	];
@@ -41,7 +43,13 @@ toOutImage[output_] :=
 		"\">"
 	];
 
-textQ[expr_] := Module[{pObjects}, 
+textQ[expr_] := Module[{exprHead, pObjects}, 
+	(* if the expression is wrapped with InputForm or OutputForm, automatically format as text *)
+	exprHead = Head[expr];
+	If[exprHead === InputForm || exprHead === OutputForm,
+		Return[True];
+	];
+
 	pObjects = 
 		GroupBy[
 			Complement[
@@ -360,7 +368,9 @@ executeRequestHandler[srm_, frameAssoc_, executionCount_Integer] :=
 									"Compact" -> True
 								];
 			,
-			If[textQ[$res],
+			(* if every output expression can be formatted as text, format as text *)
+			(* TODO: allow for mixing text and image results *)
+			If[AllTrue[$res, textQ],
 				toOut = toOutText;,
 				toOut = toOutImage;
 			];
