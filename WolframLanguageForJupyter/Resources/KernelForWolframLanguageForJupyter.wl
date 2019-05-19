@@ -64,7 +64,7 @@ textQ[expr_] := Module[{pObjects},
 		];
 
 	If[
-		ContainsOnly[Keys[pObjects], {Integer, Real, String}],
+		ContainsOnly[Keys[pObjects], {Integer, Real}],
 		Return[True];
    	];
 
