@@ -23,9 +23,9 @@ Begin["WolframLanguageForJupyter`Private`"];
 toOutText[output_] := 
 	StringJoin[
 		"<pre style=\"",
-		StringJoin[{"&#",ToString[#1], ";"} & /@ ToCharacterCode["font-family: \"Courier New\",Courier,monospace;", "UTF-8"]], 
+		StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode["font-family: \"Courier New\",Courier,monospace;", "Unicode"]], 
 		"\">",
-		StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode[ToString[output], "UTF-8"]],
+		StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode[ToString[output], "Unicode"]],
 		"</pre>"
 	];
 
@@ -39,6 +39,13 @@ toOutImage[output_] :=
 			]
 		],
 		"\">"
+	];
+
+(* check if a string contains any private use area characters *)
+containsPUAQ[str_] :=
+	AnyTrue[
+		ToCharacterCode[str, "Unicode"],
+		(57344 <= #1 <= 63743 || 983040 <= #1 <= 1048575 || 1048576 <= #1 <= 1114111) &
 	];
 
 textQ[expr_] := Module[{pObjects}, 
@@ -65,9 +72,13 @@ textQ[expr_] := Module[{pObjects},
 		ContainsOnly[Keys[pObjects], {Integer, Real, String, Symbol}],
    		Return[
    			AllTrue[
-   				pObjects[Symbol], 
-   				(ToString[Definition[#1]] === "Null") &
-   			]
+   				Lookup[pObjects, String, {}], 
+   				(!containsPUAQ[#1]) &
+   			] &&
+	   			AllTrue[
+	   				Lookup[pObjects, Symbol, {}], 
+	   				(ToString[Definition[#1]] === "Null") &
+	   			]
    		];
    	];
 
