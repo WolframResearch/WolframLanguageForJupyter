@@ -25,6 +25,8 @@ toOutText[output_] :=
 		"<pre style=\"",
 		StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode["font-family: \"Courier New\",Courier,monospace;", "Unicode"]], 
 		"\">",
+		(* the OutputForm (which ToString uses) of any expressions wrapped with, say, InputForm should
+			be identical to the string result of an InputForm-wrapped expression itself *)
 		StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode[ToString[output], "Unicode"]],
 		"</pre>"
 	];
@@ -48,7 +50,13 @@ containsPUAQ[str_] :=
 		(57344 <= #1 <= 63743 || 983040 <= #1 <= 1048575 || 1048576 <= #1 <= 1114111) &
 	];
 
-textQ[expr_] := Module[{pObjects}, 
+textQ[expr_] := Module[{exprHead, pObjects}, 
+	(* if the expression is wrapped with InputForm or OutputForm, automatically format as text *)
+	exprHead = Head[expr];
+	If[exprHead === InputForm || exprHead === OutputForm,
+		Return[True]
+	];
+	
 	pObjects = 
 		GroupBy[
 			Complement[
@@ -371,9 +379,11 @@ executeRequestHandler[srm_, frameAssoc_, executionCount_Integer] :=
 									"Compact" -> True
 								];
 			,
-			If[textQ[$res],
-				toOut = toOutText;,
-				toOut = toOutImage;
+			(* if every output expression can be formatted as text, format as text *)
+			(* TODO: allow for mixing text and image results *)
+			If[AllTrue[$res, textQ],
+				toOut = toOutText,
+				toOut = toOutImage
 			];
 			errorMessage = 	If[StringLength[$msgs] == 0,
 				{},
