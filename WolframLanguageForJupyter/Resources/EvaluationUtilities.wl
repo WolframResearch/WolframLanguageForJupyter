@@ -71,6 +71,28 @@ If[
 	Protect[Print];
 
 (************************************
+	versions of Throw and
+		Catch that we can
+		more easily intercept
+*************************************)
+
+Unprotect[Throw];
+Throw[value_] :=
+	Throw[
+		value,
+		WolframLanguageForJupyter`Private`$ThrowLabel
+	];
+Protect[Throw];
+
+Unprotect[Catch];
+Catch[expr_] :=
+	Catch[
+		expr,
+		WolframLanguageForJupyter`Private`$ThrowLabel
+	];
+Protect[Catch];
+
+(************************************
 	main evaluation command
 *************************************)
 
@@ -94,6 +116,12 @@ If[
 
 				(* the result of evaluation *)
 				evaluationResult,
+
+				(* for storing intermediate results *)
+				intermediate,
+
+				(* for storing final results *)
+				result,
 
 				(* the total result of the evaluation:
 					an association containing
@@ -157,13 +185,38 @@ If[
 			exprWithLines = 
 				Table[
 					$Line++;
-					ReleaseHold[
-						Extract[
-							Hold[{expr}],
-							{1, inIndex},
-							Hold
-						]
-					],
+					(* catch any Throws that were not handled by the input itself *)
+					intermediate = 
+						Catch[
+							ReleaseHold[
+								Extract[
+									Hold[{expr}],
+									{1, inIndex},
+									Hold
+								]
+							],
+							_,
+							WolframLanguageForJupyter`Private`$ThrowNoCatch[#1, #2] &
+						];
+					If[
+						Head[intermediate] =!= WolframLanguageForJupyter`Private`$ThrowNoCatch,
+						(* if we did not catch anything, set result to intermediate *)
+						result = intermediate;,
+						(* if we did catch something, obtain the correct held form of the Throw to return, and message *)
+						If[intermediate[[2]] === WolframLanguageForJupyter`Private`$ThrowLabel,
+							result = Replace[Hold[Throw[placeHolder]], {placeHolder -> intermediate[[1]]}, {2}];,
+							result = Replace[Hold[Throw[placeHolder1, placeHolder2]], {placeHolder1 -> intermediate[[1]], placeHolder2 -> intermediate[[2]]}, {2}];
+						];
+						result = ToString[result];
+						(* message *)
+						Message[
+							Throw::nocatch,
+							StringTrim[ToString[result, OutputForm], "Hold[" | "]"]
+						];
+					];
+					(* the overall result *)
+					result
+					,
 					{inIndex, 1, exprLength}
 				];
 
