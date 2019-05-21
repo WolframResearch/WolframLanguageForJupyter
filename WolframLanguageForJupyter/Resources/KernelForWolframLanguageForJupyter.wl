@@ -23,11 +23,11 @@ Begin["WolframLanguageForJupyter`Private`"];
 toOutText[output_] := 
 	StringJoin[
 		"<pre style=\"",
-		StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode["font-family: \"Courier New\",Courier,monospace;", "UTF-8"]], 
+		StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode["font-family: \"Courier New\",Courier,monospace;", "Unicode"]], 
 		"\">",
 		(* the OutputForm (which ToString uses) of any expressions wrapped with, say, InputForm should
 			be identical to the string result of an InputForm-wrapped expression itself *)
-		StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode[ToString[output], "UTF-8"]],
+		StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode[ToString[output], "Unicode"]],
 		"</pre>"
 	];
 
@@ -43,13 +43,20 @@ toOutImage[output_] :=
 		"\">"
 	];
 
+(* check if a string contains any private use area characters *)
+containsPUAQ[str_] :=
+	AnyTrue[
+		ToCharacterCode[str, "Unicode"],
+		(57344 <= #1 <= 63743 || 983040 <= #1 <= 1048575 || 1048576 <= #1 <= 1114111) &
+	];
+
 textQ[expr_] := Module[{exprHead, pObjects}, 
 	(* if the expression is wrapped with InputForm or OutputForm, automatically format as text *)
 	exprHead = Head[expr];
 	If[exprHead === InputForm || exprHead === OutputForm,
 		Return[True]
 	];
-
+	
 	pObjects = 
 		GroupBy[
 			Complement[
@@ -65,7 +72,7 @@ textQ[expr_] := Module[{exprHead, pObjects},
 		];
 
 	If[
-		ContainsOnly[Keys[pObjects], {Integer, Real, String}],
+		ContainsOnly[Keys[pObjects], {Integer, Real}],
 		Return[True];
    	];
 
@@ -73,9 +80,13 @@ textQ[expr_] := Module[{exprHead, pObjects},
 		ContainsOnly[Keys[pObjects], {Integer, Real, String, Symbol}],
    		Return[
    			AllTrue[
-   				pObjects[Symbol], 
-   				(ToString[Definition[#1]] === "Null") &
-   			]
+   				Lookup[pObjects, String, {}], 
+   				(!containsPUAQ[#1]) &
+   			] &&
+	   			AllTrue[
+	   				Lookup[pObjects, Symbol, {}], 
+	   				(ToString[Definition[#1]] === "Null") &
+	   			]
    		];
    	];
 
