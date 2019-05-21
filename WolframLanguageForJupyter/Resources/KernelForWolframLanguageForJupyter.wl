@@ -47,7 +47,7 @@ textQ[expr_] := Module[{exprHead, pObjects},
 	(* if the expression is wrapped with InputForm or OutputForm, automatically format as text *)
 	exprHead = Head[expr];
 	If[exprHead === InputForm || exprHead === OutputForm,
-		Return[True];
+		Return[True]
 	];
 
 	pObjects = 
@@ -371,8 +371,8 @@ executeRequestHandler[srm_, frameAssoc_, executionCount_Integer] :=
 			(* if every output expression can be formatted as text, format as text *)
 			(* TODO: allow for mixing text and image results *)
 			If[AllTrue[$res, textQ],
-				toOut = toOutText;,
-				toOut = toOutImage;
+				toOut = toOutText,
+				toOut = toOutImage
 			];
 			errorMessage = 	If[StringLength[$msgs] == 0,
 				{},
