@@ -218,11 +218,12 @@ If[
 						"Compact" -> True
 					];
 				,
-				(* if the output can be formatted as text, use a function that converts the output to text *)
+				(* if every output line can be formatted as text, use a function that converts the output to text *)
+				(* TODO: allow for mixing text and image results *)
 				(* otherwise, use a function that converts the output to an image *)
-				If[textQ[totalResult["EvaluationResult"]],
-					toOut = toOutText;,
-					toOut = toOutImage;
+				If[AllTrue[totalResult["EvaluationResult"], textQ],
+					toOut = toOutText,
+					toOut = toOutImage
 				];
 				(* prepare the content for a reply message frame to be sent on the IO Publish socket *)
 				ioPubReplyContent = ExportString[
