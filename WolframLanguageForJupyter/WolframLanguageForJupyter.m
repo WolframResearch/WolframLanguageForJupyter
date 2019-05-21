@@ -94,8 +94,7 @@ defineGlobalVars[] :=
 		fileExt = "";
 		pathSeperator = ":";,
 		"Unix",
-		mathBin = FileNameJoin[{$InstallationDirectory, "MacOS", "Kernel", "Binaries", $SystemID, "WolframKernel"}];
-		(* mathBin = FileNameJoin[{$InstallationDirectory, "Executables", "WolframKernel"}]; *)
+		mathBin = FileNameJoin[{$InstallationDirectory, "Executables", "WolframKernel"}];
 		fileExt = "";
 		pathSeperator = ":";
 	];
