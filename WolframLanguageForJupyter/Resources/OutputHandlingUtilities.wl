@@ -77,14 +77,19 @@ containsPUAQ[str_] :=
 				Complement[
 					Quiet[Cases[
 						expr, 
-						elem_ /; (Depth[elem] == 1), 
+						elem_ /; (Depth[Unevaluated[elem]] == 1) -> Hold[elem], 
 						{0, Infinity}, 
 						Heads -> True
 					]],
 					(* these symbols are fine *)
-					{List, Association}
+					{Hold[List], Hold[Association]}
 				],
-				Head
+				(
+					Replace[
+						#1,
+						Hold[elem_] :> Head[Unevaluated[elem]]
+					]
+				) &
 			];
 
 	   	(* if expr just contains atomic objects of the types listed above, return True *)
@@ -100,11 +105,16 @@ containsPUAQ[str_] :=
 	   		Return[
 	   			AllTrue[
 	   				Lookup[pObjects, String, {}], 
-	   				(!containsPUAQ[#1]) &
+	   				(!containsPUAQ[ReleaseHold[#1]]) &
 	   			] &&
 		   			AllTrue[
 		   				Lookup[pObjects, Symbol, {}], 
-		   				(ToString[Definition[#1]] === "Null") &
+		   				(
+							Replace[
+								#1,
+								Hold[elem_] :> ToString[Definition[elem]]
+							] === "Null"
+		   				) &
 		   			]
 	   		];
 	   	];

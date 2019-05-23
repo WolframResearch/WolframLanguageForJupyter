@@ -7,6 +7,8 @@ Description:
 		the Mathematica REPL
 Symbols defined:
 	Print,
+	Throw,
+	Catch,
 	simulatedEvaluate
 *************************************************)
 
@@ -207,7 +209,6 @@ Protect[Catch];
 							result = Replace[Hold[Throw[placeHolder]], {placeHolder -> intermediate[[1]]}, {2}];,
 							result = Replace[Hold[Throw[placeHolder1, placeHolder2]], {placeHolder1 -> intermediate[[1]], placeHolder2 -> intermediate[[2]]}, {2}];
 						];
-						result = ToString[result];
 						(* message *)
 						Message[
 							Throw::nocatch,
