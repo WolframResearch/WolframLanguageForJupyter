@@ -59,6 +59,7 @@ To specify a specific Wolfram Engine binary, run:
 
     ConfigureJupyter["Add", "WolframEngineBinary" -> "..." ]
 
+Please note, however, that the value for the `"WolframEngineBinary"` option should not be a `wolframscript` path.
 
 # Testing your installation
 
