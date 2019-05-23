@@ -82,12 +82,17 @@ If[
 		];
 
 	(* obtain details on how to connect to Jupyter, from Jupyter's invocation of "KernelForWolframLanguageForJupyter.wl" *)
-	connectionAssoc = ToString /@ Association[Import[$CommandLine[[4]], "JSON"]];
+	firstPosition = First[FirstPosition[$CommandLine, "positional", {$Failed}]];
+	If[
+		FailureQ[firstPosition],
+		connectionAssoc = ToString /@ Association[Import[$CommandLine[[4]], "JSON"]];,
+		connectionAssoc = ToString /@ Association[Import[$CommandLine[[firstPosition + 1]], "JSON"]];
+	];
 
 	(* warnings to display in kernel information *)
 	bannerWarning = 
 		If[
-			Length[$CommandLine] > 4,
+			MemberQ[$CommandLine, "ScriptInstall"],
 			"\\n\\nThis Jupyter kernel was installed through the WolframLanguageForJupyter WolframScript script install option. Accordingly, updates to a WolframLanguageForJupyter paclet installed to a Wolfram Engine will not propagate to this installation.",
 			""
 		];

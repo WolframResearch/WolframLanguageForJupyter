@@ -30,18 +30,48 @@ projectHome = If[StringQ[$InputFileName] && $InputFileName != "", DirectoryName[
 (* returns string form *)
 getVersionFromKernel[mathBin_String] :=
 	Module[{link, res},
-		link = 
-			LinkLaunch[
+		(* detect wolframscript *)
+		If[
+			StringMatchQ[Last[FileNameSplit[mathBin]], "wolframscript", IgnoreCase -> True],
+			(* START: wolframscript support *)
+			(* create a link *)
+			link = LinkCreate[LinkProtocol -> "TCPIP"];
+			If[
+				FailureQ[link],
+				Return[$Failed];
+			];
+			(* split a link to get its port *)
+			splitLink = StringSplit[link[[1]], "@"];
+			If[
+				Length[splitLink] == 0,
+				Return[$Failed];
+			];
+			(* launch the provided wolframscript and have it connect to the link above *)
+			(* RunProcess also works here *)
+			(* void *) LinkLaunch[
 				StringJoin[
-					{
-						"\"",
-						mathBin,
-						"\" -wstp"
-					}
+					mathBin, " ",
+						"-code", " ",
+							"\"\$Output = {}; \$ParentLink = LinkConnect[\\\"", First[splitLink], "\\\", LinkProtocol->\\\"TCPIP\\\"]; Pause[2];\"", " ",
+					"; echo "
 				]
 			];
-		If[FailureQ[link],
-			Return[$Failed];
+			(* END: wolframscript support *)
+		,
+			(* normal wolfram/WolframKernel link launch method *)
+			link = 
+				LinkLaunch[
+					StringJoin[
+						{
+							"\"",
+							mathBin,
+							"\" -wstp"
+						}
+					]
+				];
+			If[FailureQ[link],
+				Return[$Failed];
+			];
 		];
 		(* bleed link *)
 		While[LinkReadyQ[link, 0.5], LinkRead[link];];
@@ -311,7 +341,16 @@ configureJupyter[specs_Association, removeQ_?BooleanQ, removeAllQ_?BooleanQ] :=
 			Export[
 				FileNameJoin[{tempDir, "kernel.json"}], 
 				Association[
-					"argv" -> {mathBin, "-script", kernelScript, "{connection_file}", "ScriptInstall" (* , "-noprompt" *)},
+					"argv" -> 
+						{
+							mathBin,
+							"-script",
+							kernelScript,
+							"positional",
+							"{connection_file}",
+							(* remove any wolframscript noise, if wolframscript was used*)
+							"ScriptInstall" (* , "-noprompt" *)
+						},
 					"display_name" -> displayName,
 					"language" -> "Wolfram Language"
 				]
