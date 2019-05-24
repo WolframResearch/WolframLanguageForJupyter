@@ -53,7 +53,7 @@ To add the Wolfram Language to Jupyter, run:
 
 To specify a specific Jupyter binary, run:
 
-    ConfigureJupyter["Add", "JupyterBinary" -> "..."]
+    ConfigureJupyter["Add", "JupyterInstallation" -> "..."]
 
 To specify a specific Wolfram Engine binary, run:
 
