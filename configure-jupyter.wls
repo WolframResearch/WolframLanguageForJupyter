@@ -387,8 +387,8 @@ If[
 
 (* START: Building usage message *)
 
-templateJupyterPath = StringJoin["\"", FileNameJoin[{"path", "to", "Jupyter binary"}], "\""];
-templateWLPath = StringJoin["\"", FileNameJoin[{"", "absolute", "path", "to", "Wolfram Engine binary"}], "\""]; 
+templateJupyterPath = StringJoin["\"", FileNameJoin[{"path", "to", "Jupyter-binary"}], "\""];
+templateWLPath = StringJoin["\"", FileNameJoin[{"", "absolute", "path", "to", "Wolfram-Engine-binary--not-wolframscript"}], "\""]; 
 
 (* helpMessage = StringJoin[
 				"configure-jupyter.wls add [", templateJupyterPath, "]\n",
