@@ -71,7 +71,16 @@ If[
 											EndOfString :> 
 							Prepend[
 								(* add back in the brackets *)
-								StringJoin["{", #1, "}"] & /@ {json2,json3,json4,json5},
+								(
+									Association[
+										ImportByteArray[
+											StringToByteArray[
+												StringJoin["{", #1, "}"]
+											],
+											"JSON"
+										]
+									] &
+								) /@ {json2,json3,json4,json5},
 								(* use the length of ident1 *)
 								StringLength[ident1]
 							]
@@ -86,8 +95,8 @@ If[
 			Return[
 				Association[
 					"ident" -> baFrame[[;;identLen]],
-					"header" -> Association[ImportString[header, "JSON"]],
-					"content" -> Association[ImportString[content, "JSON"]]
+					"header" -> header,
+					"content" -> content
 				]
 			];
 		];
