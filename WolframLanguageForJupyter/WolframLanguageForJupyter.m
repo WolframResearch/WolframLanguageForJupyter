@@ -323,7 +323,7 @@ configureJupyter[specs_Association, removeQ_?BooleanQ, removeAllQ_?BooleanQ] :=
 		(* for error detection, get a snapshot of kernels before the action is performed *)
 		kernelspecs = getKernels[jupyterPath, processEnvironment];
 		(* when adding, if there is a kernel with the same id already in Jupyter, it will be replaced; thus, message, but continue *)
-		If[SubsetQ[kernelspecs, wlKernelsL] @@ !removeQ, Message[ConfigureJupyter::addconflict]];
+		If[SubsetQ[kernelspecs, wlKernelsL] && !removeQ, Message[ConfigureJupyter::addconflict]];
 
 		(* perform the action *)
 		exitInfo = RunProcess[commandArgs, All, ProcessEnvironment -> processEnvironment];
