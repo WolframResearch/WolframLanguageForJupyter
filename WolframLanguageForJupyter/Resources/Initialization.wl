@@ -48,6 +48,9 @@ If[
 	set noise settings
 *************************************)
 
+	(* make Short[] work *)
+	SetOptions[$Output, PageWidth -> 89];
+
 (* 	do not output messages to the jupyter notebook invocation
 	$Messages = {};
 	$Output = {}; *)
