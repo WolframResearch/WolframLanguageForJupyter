@@ -6,7 +6,10 @@ Description:
 		WolframLanguageForJupyter
 Symbols defined:
 	loopState,
+	applyHook,
 	$canUseFrontEnd,
+	$outputSetToTraditionalForm,
+	$trueFormatType,
 	connectionAssoc,
 	bannerWarning,
 	keyString,
@@ -86,9 +89,10 @@ If[
 			"printFunction" -> Function[#;]
 		];
 
-	(* initialize hooks *)
-	$Post = #&;
-	$PrePrint = #&;
+	(* helper utility for applying hooks if they are set *)
+	applyHook[hook_, value_] /; Length[OwnValues[hook]] != 0 := hook[value];
+	applyHook[hook_, value_] := value;
+	Attributes[applyHook] := HoldAll;
 
 	(* can we use the Front End? *)
 	$canUseFrontEnd := (UsingFrontEnd[$FrontEnd] =!= Null);

@@ -27,7 +27,7 @@ If[
 		files
 *************************************)
 
-	Get[FileNameJoin[{DirectoryName[$InputFileName], "Initialization.wl"}]]; (* loopState, $canUseFrontEnd *)
+	Get[FileNameJoin[{DirectoryName[$InputFileName], "Initialization.wl"}]]; (* loopState, applyHook, $canUseFrontEnd *)
 
 (************************************
 	wrapper for interacting
@@ -58,9 +58,10 @@ If[
 	SetAttributes[interactQ, HoldAll];
 
 	(* remove any Interact wrappers,
+		apply $Pre,
 		and bring in the Front End for the evaluation of expr *)
-	uninteract[Interact[expr_]] := UsingFrontEnd[expr];
-	uninteract[expr_] := UsingFrontEnd[expr];
+	uninteract[Interact[expr_]] := UsingFrontEnd[applyHook[$Pre, expr]];
+	uninteract[expr_] := UsingFrontEnd[applyHook[$Pre, expr]];
 	SetAttributes[uninteract, HoldAll];
 
 (************************************
@@ -293,7 +294,11 @@ If[
 			$Messages = {stream};
 
 			(* start the parse of the input *)
-			parseTracker = startParsingInput[codeStr];
+			parseTracker =
+				startParsingInput[
+					(* apply $PreRead to the input *)
+					applyHook[$PreRead, codeStr]
+				];
 
 			(* initialize rawEvaluationResult to an empty list *)
 			rawEvaluationResult = {};
@@ -311,13 +316,23 @@ If[
 					!parseTracker["SyntaxError"],
 					(* increment $Line *)
 					$Line++;
+					(* set InString *)
+					Unprotect[InString];
+					InString[
+							loopState["executionCount"] + parseTracker["ExpressionsParsed"] - 1
+						] = exprStr;
+					Protect[InString];
 				];
 
 				(* catch any Throws that were not handled by the input itself *)
 				intermediate = 
 					Catch[
 						(* evaluate the expression string *)
-						ToExpression[exprStr, InputForm, uninteract],
+						ToExpression[
+							exprStr,
+							InputForm,
+							uninteract
+						],
 						_,
 						WolframLanguageForJupyter`Private`$ThrowNoCatch[#1, #2] &
 					];
@@ -354,13 +369,13 @@ If[
 					];
 					Protect[In];
 					(* apply $Post to the result *)
-					result = $Post[result];
+					result = applyHook[$Post, result];
 					(* set the Out[] for this expression *)
 					Unprotect[Out];
 					Out[loopState["executionCount"] + parseTracker["ExpressionsParsed"] - 1] = result;
 					Protect[Out];
 					(* create the overall result with $PrePrint *)
-					result = $PrePrint[result];
+					result = applyHook[$PrePrint, result];
 					,
 					(* syntax error *)
 					result = $Failed;
