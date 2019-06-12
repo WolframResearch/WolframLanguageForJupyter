@@ -9,6 +9,7 @@ Symbols defined:
 	applyHook,
 	$canUseFrontEnd,
 	$outputSetToTraditionalForm,
+	$outputSetToTeXForm,
 	$trueFormatType,
 	connectionAssoc,
 	bannerWarning,
@@ -98,7 +99,16 @@ If[
 	$canUseFrontEnd := (UsingFrontEnd[$FrontEnd] =!= Null);
 
 	$outputSetToTraditionalForm := (Lookup[Options[$Output], FormatType] === TraditionalForm);
-	$trueFormatType := If[$outputSetToTraditionalForm, TraditionalForm, #&];
+	$outputSetToTeXForm := (Lookup[Options[$Output], FormatType] === TeXForm);
+	$trueFormatType :=
+		Which[
+			$outputSetToTraditionalForm,
+			TraditionalForm,
+			$outputSetToTeXForm,
+			TeXForm,
+			True,
+			Identity
+		];
 
 	(* obtain details on how to connect to Jupyter, from Jupyter's invocation of "KernelForWolframLanguageForJupyter.wl" *)
 	connectionAssoc = ToString /@ Association[Import[$CommandLine[[4]], "JSON"]];

@@ -28,7 +28,8 @@ If[
 		files
 *************************************)
 
-	Get[FileNameJoin[{DirectoryName[$InputFileName], "Initialization.wl"}]]; (* $canUseFrontEnd, $outputSetToTraditionalForm
+	Get[FileNameJoin[{DirectoryName[$InputFileName], "Initialization.wl"}]]; (* $canUseFrontEnd, $outputSetToTeXForm,
+																					$outputSetToTraditionalForm,
 																					$trueFormatType *)
 
 (************************************
@@ -105,6 +106,12 @@ If[
 			Return[True]
 		];
 
+		(* if the FormatType of $Output is set to TeXForm, or if the expression is wrapped with TeXForm,
+			and the expression has an acceptable textual form, format as text *)
+		If[($outputSetToTeXForm || exprHead == TeXForm) && !containsPUAQ[ToString[expr]],
+			Return[True];
+		];
+
 		(* if the FormatType of $Output is set to TraditionalForm,
 			or if the expression is wrapped with TraditionalForm,
 			do not use text *)
@@ -172,23 +179,57 @@ If[
 
 	(* generate HTML for the textual form of a result *)
 	toOutText[result_] := 
-		StringJoin[
-			(* preformatted *)
-			"<pre style=\"",
-			(* use Courier *)
-			StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode["font-family: \"Courier New\",Courier,monospace;", "Unicode"]], 
-			"\">",
-			(* the textual form of the result *)
-			(* NOTE: the OutputForm (which ToString uses) of any expressions wrapped with, say, InputForm should
-				be identical to the string result of an InputForm-wrapped expression itself *)
-			StringJoin[{"&#", ToString[#1], ";"} & /@ 
-				ToCharacterCode[
-					(* toStringUsingOutput[result] *) ToString[result],
-					"Unicode"
+		Module[
+			{isTeXWrapped, isTeXFinal},
+			(* check if this result is wrapped with TeXForm *)
+			isTeXWrapped = (Head[result] === TeXForm);
+			(* check if this result should be marked, in the end, as TeX *)
+			isTeXFinal = isTeXWrapped || $outputSetToTeXForm;
+			Return[
+				StringJoin[
+
+					(* mark this result as preformatted only if it isn't TeX *)
+					If[
+						!isTeXFinal,
+						{
+							(* preformatted *)
+							"<pre style=\"",
+							(* use Courier *)
+							StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode["font-family: \"Courier New\",Courier,monospace;", "Unicode"]], 
+							"\">"
+						},
+						{}
+					],
+
+					(* mark the text as TeX, if is TeX *)
+					If[isTeXFinal, "&#36;&#36;", ""],
+
+					(* the textual form of the result *)
+					(* NOTE: the OutputForm (which ToString uses) of any expressions wrapped with, say, InputForm should
+						be identical to the string result of an InputForm-wrapped expression itself *)
+					({"&#", ToString[#1], ";"} & /@ 
+						ToCharacterCode[
+							(* toStringUsingOutput[result] *)
+							Quiet[
+								ToString[If[!isTeXWrapped, $trueFormatType[result], result]]
+							],
+							"Unicode"
+						]),
+
+					(* mark the text as TeX, if is TeX *)
+					If[isTeXFinal, "&#36;&#36;", ""],
+
+					(* mark this result as preformatted only if it isn't TeX *)
+					If[
+						!isTeXFinal,
+						{
+							(* end the element *)
+							"</pre>"
+						},
+						{}
+					]
 				]
-			],
-			(* end the element *)
-			"</pre>"
+			];
 		];
 
 	(* generate HTML for the rasterized form of a result *)
