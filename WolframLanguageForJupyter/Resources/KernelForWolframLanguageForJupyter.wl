@@ -6,7 +6,7 @@ Description:
 	Entry point for WolframLanguageForJupyter
 		kernels started by Jupyter
 Symbols defined:
-	loopState
+	loop
 *************************************************)
 
 (************************************
@@ -180,6 +180,7 @@ End[]; (* `Private` *)
 
 (* end the WolframLanguageForJupyter package *)
 EndPackage[]; (* WolframLanguageForJupyter` *)
+(* $ContextPath = DeleteCases[$ContextPath, "WolframLanguageForJupyter`"]; *)
 
 (************************************
 	evaluate loop[]

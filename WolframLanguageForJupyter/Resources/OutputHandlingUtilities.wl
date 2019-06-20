@@ -23,6 +23,15 @@ If[
 	WolframLanguageForJupyter`Private`$GotOutputHandlingUtilities = True;
 
 (************************************
+	load required
+		WolframLanguageForJupyter
+		files
+*************************************)
+
+	Get[FileNameJoin[{DirectoryName[$InputFileName], "Initialization.wl"}]]; (* $canUseFrontEnd, $outputSetToTraditionalForm
+																					$trueFormatType *)
+
+(************************************
 	private symbols
 *************************************)
 
@@ -30,17 +39,39 @@ If[
 	Begin["`Private`"];
 
 (************************************
+	helper utility for converting
+		an expression into a
+		textual form
+*************************************)
+
+	(* convert an expression into a textual form,
+		using as much of the options already set for $Output as possible for ToString *)
+	toStringUsingOutput[expr_] :=
+		ToString[
+			expr,
+			Sequence @@
+				Cases[
+					Options[$Output],
+					Verbatim[Rule][opt_, val_] /;
+						MemberQ[
+							Keys[Options[ToString]],
+							opt
+						]
+				]
+		];
+
+(************************************
 	helper utility for determining
 		if a result should be
 		displayed as text or an image
 *************************************)
 
-(* check if a string contains any private use area characters *)
-containsPUAQ[str_] :=
-	AnyTrue[
-		ToCharacterCode[str, "Unicode"],
-		(57344 <= #1 <= 63743 || 983040 <= #1 <= 1048575 || 1048576 <= #1 <= 1114111) &
-	];
+	(* check if a string contains any private use area characters *)
+	containsPUAQ[str_] :=
+		AnyTrue[
+			ToCharacterCode[str, "Unicode"],
+			(57344 <= #1 <= 63743 || 983040 <= #1 <= 1048575 || 1048576 <= #1 <= 1114111) &
+		];
 
 (************************************
 	utility for determining if a
@@ -61,14 +92,24 @@ containsPUAQ[str_] :=
 
 		(* if we cannot use the frontend, use text *)
 		If[
-			UsingFrontEnd[$FrontEnd] === Null,
+			!$canUseFrontEnd,
 			Return[True];
 		];
 
-		(* if the expression is wrapped with InputForm or OutputForm, automatically format as text *)
+		(* save the head of the expression *)
 		exprHead = Head[expr];
+
+		(* if the expression is wrapped with InputForm or OutputForm,
+			automatically format as text *)
 		If[exprHead === InputForm || exprHead === OutputForm,
 			Return[True]
+		];
+
+		(* if the FormatType of $Output is set to TraditionalForm,
+			or if the expression is wrapped with TraditionalForm,
+			do not use text *)
+		If[$outputSetToTraditionalForm || exprHead === TraditionalForm,
+			Return[False]
 		];
 
 		(* breakdown expr into atomic objects organized by their Head *)
@@ -103,10 +144,10 @@ containsPUAQ[str_] :=
 		If[
 			ContainsOnly[Keys[pObjects], {Integer, Real, String, Symbol}],
 	   		Return[
-	   			AllTrue[
-	   				Lookup[pObjects, String, {}], 
-	   				(!containsPUAQ[ReleaseHold[#1]]) &
-	   			] &&
+				AllTrue[
+						Lookup[pObjects, String, {}], 
+						(!containsPUAQ[ReleaseHold[#1]]) &
+					] &&
 		   			AllTrue[
 		   				Lookup[pObjects, Symbol, {}], 
 		   				(
@@ -140,7 +181,12 @@ containsPUAQ[str_] :=
 			(* the textual form of the result *)
 			(* NOTE: the OutputForm (which ToString uses) of any expressions wrapped with, say, InputForm should
 				be identical to the string result of an InputForm-wrapped expression itself *)
-			StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode[ToString[result], "Unicode"]],
+			StringJoin[{"&#", ToString[#1], ";"} & /@ 
+				ToCharacterCode[
+					(* toStringUsingOutput[result] *) ToString[result],
+					"Unicode"
+				]
+			],
 			(* end the element *)
 			"</pre>"
 		];
@@ -153,7 +199,8 @@ containsPUAQ[str_] :=
 			(* the rasterized form of the result, converted to base64 *)
 			BaseEncode[
 				UsingFrontEnd[ExportByteArray[
-					If[Head[result] === Manipulate, result, Rasterize[result]],
+					(If[Head[#1] === Manipulate, #1, Rasterize[#1]] &) @
+						$trueFormatType[result],
 					"PNG"
 				]]
 			],

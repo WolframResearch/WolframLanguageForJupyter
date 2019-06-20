@@ -5,6 +5,11 @@ Description:
 	Initialization for
 		WolframLanguageForJupyter
 Symbols defined:
+	loopState,
+	applyHook,
+	$canUseFrontEnd,
+	$outputSetToTraditionalForm,
+	$trueFormatType,
 	connectionAssoc,
 	bannerWarning,
 	keyString,
@@ -83,6 +88,17 @@ If[
 			(* the function Print should use *)
 			"printFunction" -> Function[#;]
 		];
+
+	(* helper utility for applying hooks if they are set *)
+	applyHook[hook_, value_] /; Length[OwnValues[hook]] != 0 := hook[value];
+	applyHook[hook_, value_] := value;
+	Attributes[applyHook] := HoldAll;
+
+	(* can we use the Front End? *)
+	$canUseFrontEnd := (UsingFrontEnd[$FrontEnd] =!= Null);
+
+	$outputSetToTraditionalForm := (Lookup[Options[$Output], FormatType] === TraditionalForm);
+	$trueFormatType := If[$outputSetToTraditionalForm, TraditionalForm, #&];
 
 	(* obtain details on how to connect to Jupyter, from Jupyter's invocation of "KernelForWolframLanguageForJupyter.wl" *)
 	connectionAssoc = ToString /@ Association[Import[$CommandLine[[4]], "JSON"]];
