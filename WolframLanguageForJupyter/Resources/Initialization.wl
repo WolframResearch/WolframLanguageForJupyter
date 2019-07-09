@@ -16,6 +16,8 @@ Symbols defined:
 	keyString,
 	baseString,
 	heartbeatString,
+	verticalEllipsis,
+	unicodeNamedCharactersReplacements,
 	ioPubString,
 	controlString,
 	inputString,
@@ -62,6 +64,110 @@ If[
 	$Output = {}; *)
 
 (************************************
+	discover the named unicode
+		characters and their names
+*************************************)
+
+	(* the vertical ellipsis character *)
+	verticalEllipsis = FromCharacterCode[8942, "Unicode"];
+
+	(* pre-define the association of names and named characters as empty *)
+	unicodeNamedCharactersReplacements = Association[];
+
+	Block[
+		{
+			(* the absolute file name for "UnicodeCharacters.tr" *)
+			unicodeCharactersTRFileName,
+
+			(* raw data extracted from "UnicodeCharacters.tr" *)
+			charactersAndTheirNames
+		},
+
+		(* attempt to get the full location of "UnicodeCharacters.tr" *)
+		unicodeCharactersTRFileName = UsingFrontEnd[System`Dump`unicodeCharactersTR];
+
+		(* try again if using System`Dump`unicodeCharactersTR does not work *)
+		If[
+			!StringQ[unicodeCharactersTRFileName],
+			unicodeCharactersTRFileName =
+				UsingFrontEnd[
+					ToFileName[
+						FrontEnd`FileName[
+							{
+								$InstallationDirectory,
+								"SystemFiles",
+								"FrontEnd",
+								"TextResources"
+							},
+							"UnicodeCharacters.tr"
+						]
+					]
+				];
+		];
+
+		If[
+			StringQ[unicodeCharactersTRFileName],
+			charactersAndTheirNames =
+				(
+					(* parse the third item of a row (for a named character) into a list *)
+					ReplacePart[
+						#1,
+						3 ->
+							StringCases[
+								(* remove extraneous parentheses *)
+								StringTrim[
+									#1[[3]],
+									"(" | ")"
+								],
+								(* extract the escape sequences for the named character *)
+								Longest[escSeq : (Except[WhitespaceCharacter] ..)] :>
+									StringJoin[verticalEllipsis, StringTrim[escSeq, "$"], verticalEllipsis]
+							]
+					] &
+				) /@
+					(
+						(* parse the rows into their items (where each item is separated by two tabs) *)
+						(StringSplit[#1, "\t\t"] &) /@
+							(
+								(* split unicodeCharactersTRFileName into its lines *)
+								StringSplit[
+									Import[unicodeCharactersTRFileName, "String"],
+									"\n"
+								(* drop the first row *)
+								][[2 ;;]]
+							)
+					);
+
+			(* parse the data into an association of names and the named characters they correspond to *)
+			unicodeNamedCharactersReplacements =
+				(* sort the keys by string length *)
+				KeySort[
+					(* sort the keys in the default manner *)
+					KeySort[
+						(* drop "empty names" *)
+						KeyDrop[
+							(* make an association *)
+							Association[
+								(* create a list of rules of names and named characters *)
+								Thread[
+									Rule[
+										(Prepend[#1[[3]], #1[[2]]]),
+										FromCharacterCode[FromDigits[StringDrop[#1[[1]], 2], 16], "Unicode"]
+									]
+								] & /@ charactersAndTheirNames
+							],
+							{
+								StringJoin[Table[verticalEllipsis, {2}]],
+								"\\[]"
+							}
+						]
+					],
+					(StringLength[#1] < StringLength[#2]) &
+				];
+		];
+	];
+
+(************************************
 	various important symbols
 		for use by
 		WolframLanguageForJupyter
@@ -101,13 +207,10 @@ If[
 	$outputSetToTraditionalForm := (Lookup[Options[$Output], FormatType] === TraditionalForm);
 	$outputSetToTeXForm := (Lookup[Options[$Output], FormatType] === TeXForm);
 	$trueFormatType :=
-		Which[
+		If[
 			$outputSetToTraditionalForm,
 			TraditionalForm,
-			$outputSetToTeXForm,
-			TeXForm,
-			True,
-			Identity
+			If[$outputSetToTeXForm, TeXForm, #&]
 		];
 
 	(* obtain details on how to connect to Jupyter, from Jupyter's invocation of "KernelForWolframLanguageForJupyter.wl" *)
