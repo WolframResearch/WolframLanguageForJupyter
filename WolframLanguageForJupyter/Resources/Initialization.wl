@@ -125,7 +125,8 @@ If[
 							]
 					] &
 				) /@
-					(
+					(* only use lists with at least three items *)
+					Select[
 						(* parse the rows into their items (where each item is separated by two tabs) *)
 						(StringSplit[#1, "\t\t"] &) /@
 							(
@@ -135,8 +136,9 @@ If[
 									"\n"
 								(* drop the first row *)
 								][[2 ;;]]
-							)
-					);
+							),
+						(Length[#1] >= 3) &
+					];
 
 			(* parse the data into an association of names and the named characters they correspond to *)
 			unicodeNamedCharactersReplacements =

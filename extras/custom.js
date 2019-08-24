@@ -28,7 +28,7 @@ function redirectEsc(event) {
 				/* the vertical ellipsis character */
 				String.fromCharCode(8942)
 			);
-		event.preventDefault();
+		event.stopImmediatePropagation();
 	}
 }
 
