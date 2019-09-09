@@ -10,6 +10,7 @@ Description:
 Symbols defined:
 	textQ,
 	toOutText,
+	toImageData,
 	toOutImage
 *************************************************)
 
@@ -30,7 +31,7 @@ If[
 
 	Get[FileNameJoin[{DirectoryName[$InputFileName], "Initialization.wl"}]]; (* $canUseFrontEnd, $outputSetToTeXForm,
 																					$outputSetToTraditionalForm,
-																					$trueFormatType *)
+																					$trueFormatType, failedInBase64 *)
 
 (************************************
 	private symbols
@@ -229,21 +230,91 @@ If[
 			];
 		];
 
+	(* generate a byte array of image data for the rasterized form of a result *)
+	toImageData[result_] :=
+		Module[
+			{
+				(* the preprocessed form of a result *)
+				preprocessedForm
+			},
+			(* preprocess the result *)
+			If[
+				Head[result] === Manipulate,
+				preprocessedForm = result;
+				,
+				preprocessedForm = Rasterize[result];
+			];
+			(* if the preprocessing failed, return $Failed *)
+			If[
+				FailureQ[preprocessedForm],
+				Return[$Failed];
+			];
+			(* now return preprocessedForm as a byte array corresponding to the PNG format *)
+			Return[
+				ExportByteArray[
+					preprocessedForm,
+					"PNG"
+				]
+			];
+		];
+
 	(* generate HTML for the rasterized form of a result *)
 	toOutImage[result_] := 
-		StringJoin[
-			(* display a inlined PNG image encoded in base64 *)
-			"<img alt=\"Output\" src=\"data:image/png;base64,",
-			(* the rasterized form of the result, converted to base64 *)
-			BaseEncode[
-				UsingFrontEnd[ExportByteArray[
-					(If[Head[#1] === Manipulate, #1, Rasterize[#1]] &) @
-						$trueFormatType[result],
-					"PNG"
-				]]
-			],
-			(* end the element *)
-			"\">"
+		Module[
+			{
+				(* the rasterization of result *)
+				imageData,
+				(* the rasterization of result in base 64 *)
+				imageDataInBase64
+			},
+
+			(* rasterize the result *)
+			imageData =
+				toImageData[
+					$trueFormatType[result]
+				];
+			If[
+				!FailureQ[imageData],
+				(* if the rasterization did not fail, convert it to base 64 *)
+				imageInBase64 = BaseEncode[imageData];
+				,
+				(* if the rasterization did fail, try to rasterize result with Shallow *)
+				imageData =
+					toImageData[
+						$trueFormatType[Shallow[result]]
+					];
+				If[
+					!FailureQ[imageData],
+					(* if the rasterization did not fail, convert it to base 64 *)
+					imageInBase64 = BaseEncode[imageData];
+					,
+					(* if the rasterization did fail, try to rasterize $Failed *)
+					imageData =
+						toImageData[
+							$trueFormatType[$Failed]
+						];
+					If[
+						!FailureQ[imageData],
+						(* if the rasterization did not fail, convert it to base 64 *)
+						imageInBase64 = BaseEncode[imageData];
+						,
+						(* if the rasterization did fail, use a hard-coded base64 rasterization of $Failed *)
+						imageInBase64 = failedinBase64;
+					];
+				];
+			];
+
+			(* return HTML for the rasterized form of result *)
+			Return[
+				StringJoin[
+					(* display a inlined PNG image encoded in base64 *)
+					"<img alt=\"Output\" src=\"data:image/png;base64,",
+					(* the rasterized form of the result, converted to base64 *)
+					imageInBase64,
+					(* end the element *)
+					"\">"
+				]
+			]
 		];
 
 	(* end the private context for WolframLanguageForJupyter *)
