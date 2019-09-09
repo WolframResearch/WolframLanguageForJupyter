@@ -118,8 +118,8 @@ loop[] :=
 						"status",
 						(* the status message content *)
 						"{\"execution_state\":\"busy\"}",
-						(* branch off *)
-						True
+						(* do not branch off *)
+						False
 					];
 				(* send the frame *)
 				sendFrame[ioPubSocket, statusReplyFrame];
@@ -156,8 +156,8 @@ loop[] :=
 						"status",
 						(* the status message content *)
 						"{\"execution_state\":\"idle\"}",
-						(* branch off *)
-						True
+						(* do not branch off *)
+						False
 					]
 				];
 
