@@ -36,7 +36,7 @@ Get[FileNameJoin[{DirectoryName[$InputFileName], "Initialization.wl"}]]; (* init
 Get[FileNameJoin[{DirectoryName[$InputFileName], "SocketUtilities.wl"}]]; (* sendFrame *)
 Get[FileNameJoin[{DirectoryName[$InputFileName], "MessagingUtilities.wl"}]]; (* getFrameAssoc, createReplyFrame *)
 
-Get[FileNameJoin[{DirectoryName[$InputFileName], "RequestHandlers.wl"}]]; (* executeRequestHandler *)
+Get[FileNameJoin[{DirectoryName[$InputFileName], "RequestHandlers.wl"}]]; (* executeRequestHandler, completeRequestHandler *)
 
 (************************************
 	private symbols
@@ -96,6 +96,10 @@ loop[] :=
 					"execute_request",
 					(* executeRequestHandler will read and update loopState *)
 					executeRequestHandler[];,
+					(* use the tab-completion functionality to rewrite named character names *)
+					"complete_request",
+					(* completeRequestHandler will read and update loopState *)
+					completeRequestHandler[];,
 					(* if asking the kernel to shutdown, set doShutdown to True *)
 					"shutdown_request",
 					loopState["replyMsgType"] = "shutdown_reply";

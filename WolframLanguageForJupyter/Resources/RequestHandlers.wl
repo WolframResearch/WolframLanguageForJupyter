@@ -5,7 +5,8 @@ Description:
 	Handlers for message frames of type
 		"x_request" arriving from Jupyter
 Symbols defined:
-	executeRequestHandler
+	executeRequestHandler,
+	completeRequestHandler
 *************************************************)
 
 (************************************
@@ -30,7 +31,10 @@ If[
 
 	Get[FileNameJoin[{DirectoryName[$InputFileName], "EvaluationUtilities.wl"}]]; (* simulatedEvaluate *)
 
-	Get[FileNameJoin[{DirectoryName[$InputFileName], "OutputHandlingUtilities.wl"}]]; (* textQ, toOutText, toOutImage *)
+	Get[FileNameJoin[{DirectoryName[$InputFileName], "OutputHandlingUtilities.wl"}]]; (* textQ, toOutText, toOutImage,
+																							containsPUAQ *)
+
+	Get[FileNameJoin[{DirectoryName[$InputFileName], "CompletionUtilities.wl"}]]; (* rewriteNamedCharacters *)
 
 (************************************
 	private symbols
@@ -69,7 +73,6 @@ If[
 			(* set the content of the reply to information about WolframLanguageForJupyter's execution of the input *)
 			loopState["replyContent"] = 
 				ExportString[
-					(* kind of self-explanatory *)
 					Association[
 						"status" -> "ok",
 						"execution_count" -> loopState["executionCount"],
@@ -276,6 +279,54 @@ If[
 
 			(* increment loopState["executionCount"] as needed *)
 			loopState["executionCount"] += totalResult["ConsumedIndices"];
+		];
+
+(************************************
+	handler for complete_requests
+*************************************)
+
+	(* handle complete_request messages frames received on the shell socket *)
+	completeRequestHandler[] :=
+		Module[
+			{
+				(* for storing the code string to offer completion suggestions on *)
+				codeStr
+			},
+			(* get the code string to rewrite the named characters of, ending at the cursor *)
+			codeStr =
+				StringTake[
+					loopState["frameAssoc"]["content"]["code"],
+					{
+						1,
+						loopState["frameAssoc"]["content"]["cursor_pos"]
+					}
+				];
+			(* set the appropriate reply type *)
+			loopState["replyMsgType"] = "complete_reply";
+			(* set the content of the reply to a list of rewrites for any named characters in the code string *)
+			loopState["replyContent"] = 
+				ByteArrayToString[
+					ExportByteArray[
+						Association[
+							"matches" ->
+								DeleteDuplicates[
+									Prepend[
+										Select[
+											rewriteNamedCharacters[codeStr],
+											(!containsPUAQ[#1])&
+										],
+										codeStr
+									]
+								],
+							"cursor_start" -> 0,
+							"cursor_end" -> StringLength[codeStr],
+							"metadata" -> {},
+							"status" -> "ok"
+						], 
+						"JSON",
+						"Compact" -> True
+					]
+				];
 		];
 
 	(* end the private context for WolframLanguageForJupyter *)

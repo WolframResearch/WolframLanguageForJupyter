@@ -209,10 +209,7 @@ If[
 						be identical to the string result of an InputForm-wrapped expression itself *)
 					({"&#", ToString[#1], ";"} & /@ 
 						ToCharacterCode[
-							(* toStringUsingOutput[result] *)
-							Quiet[
-								ToString[If[!isTeXWrapped, $trueFormatType[result], result]]
-							],
+							(* toStringUsingOutput[result] *) ToString[If[!isTeXWrapped, $trueFormatType[result], result]],
 							"Unicode"
 						]),
 
