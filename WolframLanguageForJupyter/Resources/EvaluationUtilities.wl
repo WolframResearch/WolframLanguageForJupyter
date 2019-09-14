@@ -72,7 +72,7 @@ If[
 	(* redirect Print calls into a message to Jupyter, in order to print in the Jupyter notebook *)
 	(* TODO: review other methods: through EvaluationData or WSTP so we don't redefine Print *)
 	Unprotect[Print];
-	Print[args___, opts:OptionsPattern[]] :=
+	Print[ourArgs___, opts:OptionsPattern[]] :=
 		Block[
 			{
 				$inPrint=True,
@@ -80,7 +80,7 @@ If[
 			},
 			If[
 				!FailureQ[First[$Output]],
-					Print[args, opts];
+					Print[ourArgs, opts];
 					loopState["printFunction"][
 						Import[$Output[[1,1]], "String"]
 					];

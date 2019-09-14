@@ -187,7 +187,7 @@ If[
 				(* otherwise, use a function that converts the output to an image *)
 				If[AllTrue[totalResult["EvaluationResult"], textQ],
 					toOut = toOutText,
-					toOut = toOutImage
+					toOut = UsingFrontEnd @* toOutImage
 				];
 				(* prepare the content for a reply message frame to be sent on the IO Publish socket *)
 				ioPubReplyContent = ExportString[

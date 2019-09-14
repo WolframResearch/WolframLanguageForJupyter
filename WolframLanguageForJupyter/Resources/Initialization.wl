@@ -202,7 +202,34 @@ If[
 	applyHook[hook_, value_] /; Length[OwnValues[hook]] != 0 := hook[value];
 	applyHook[hook_, value_] := value;
 	Attributes[applyHook] := HoldAll;
+	
+	(* the DPI used by browsers according to the CSS standard:
+		https://www.w3.org/TR/css3-values/#absolute-lengths *)
+	cssResolutionDPI = 96;
 
+	(* a top-level symbol for controlling the resolution of the output *)
+	Global`$JupyterResolutionDPI =
+		(* do not allow a value less than cssResolutionDPI as a default value for this *)
+		Max[
+			cssResolutionDPI,
+			(* look in SystemInformation for relevant resolutions *)
+			FirstCase[
+				Quiet[UsingFrontEnd[SystemInformation["Devices", "ScreenInformation"]]],
+				Verbatim[Rule]["Resolution", dpi_?IntegerQ] -> dpi,
+				72,
+				Infinity
+			]
+		];
+
+	(* a safe form of Global`$JupyterResolutionDPI *)
+	safeJupyterResolutionDPI :=
+		First[
+			Replace[
+				{Global`$JupyterResolutionDPI},
+				Except[{value_ /; (IntegerQ[value] && value > 0)}] -> {cssResolutionDPI}
+			]
+		];
+	
 	(* can we use the Front End? *)
 	$canUseFrontEnd := (UsingFrontEnd[$FrontEnd] =!= Null);
 

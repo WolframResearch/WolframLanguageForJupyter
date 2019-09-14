@@ -31,7 +31,10 @@ If[
 
 	Get[FileNameJoin[{DirectoryName[$InputFileName], "Initialization.wl"}]]; (* $canUseFrontEnd, $outputSetToTeXForm,
 																					$outputSetToTraditionalForm,
-																					$trueFormatType, failedInBase64 *)
+																					$trueFormatType,
+																					safeJupyterResolutionDPI,
+																					cssResolutionDPI,
+																					failedInBase64 *)
 
 (************************************
 	private symbols
@@ -234,28 +237,88 @@ If[
 	toImageData[result_] :=
 		Module[
 			{
+				(* whether the result has been "pre-rasterized" *)
+				preRasterized,
 				(* the preprocessed form of a result *)
-				preprocessedForm
+				preprocessedForm,
+				(* the result of this operation *)
+				byteArrayResult,
+				(* the dimensions of the image to use *)
+				imageDimensions
 			},
+
 			(* preprocess the result *)
+			preRasterized = (Head[result] =!= Manipulate);
 			If[
-				Head[result] === Manipulate,
-				preprocessedForm = result;
+				preRasterized,
+				(* rasterize the result *)
+				preprocessedForm =
+					Rasterize[
+						result,
+						ImageResolution -> safeJupyterResolutionDPI
+					];
+				(* if the preprocessing failed, return $Failed *)
+				If[
+					FailureQ[preprocessedForm],
+					Return[{$Failed, $Failed}];
+				];
+				(* the "natural" image dimensions of preprocessedForm do not appear to be easily predictable,
+					so just use the dimensions of preprocessedForm when rasterized (again) at 72 DPI *)
+				imageDimensions =
+					Rasterize[
+						result,
+						"BoundingBox",
+						ImageResolution -> 72
+					];
+				If[
+					(FailureQ[imageDimensions]) ||
+						(!ListQ[imageDimensions]) ||
+							(Length[imageDimensions] < 2),
+					Return[{$Failed, $Failed}];
+				];
+				imageDimensions =
+					ToString /@
+						IntegerPart[imageDimensions[[1;;2]]/72 * cssResolutionDPI * (* also, reduce the size of the image somewhat *) 4/5];
 				,
-				preprocessedForm = Rasterize[result];
+				(* do not preprocess, and do not set imageDimensions *)
+				preprocessedForm = result;
 			];
-			(* if the preprocessing failed, return $Failed *)
-			If[
-				FailureQ[preprocessedForm],
-				Return[$Failed];
-			];
-			(* now return preprocessedForm as a byte array corresponding to the PNG format *)
-			Return[
+
+			(* save preprocessedForm as a byte array corresponding to the PNG format *)
+			byteArrayResult =
 				ExportByteArray[
 					preprocessedForm,
-					"PNG"
-				]
+					"PNG",
+					ImageResolution -> safeJupyterResolutionDPI
+				];
+			If[
+				FailureQ[byteArrayResult],
+				Return[{$Failed, $Failed}];
 			];
+
+			(* for Manipulate results, where the image dimensions are not yet determined, read in the metadata of byteArrayResult *)
+			If[
+				!preRasterized,
+				imageDimensions =
+					FirstCase[
+						Quiet[ImportByteArray[byteArrayResult, {"PNG", "Options"}]],
+						Verbatim[Rule]["ImageSize", {width_?IntegerQ, height_?IntegerQ}] :>
+							(ToString /@
+									IntegerPart[
+										{width, height}/72 *
+											cssResolutionDPI *
+												(* also, reduce the size of the image somewhat *) 4/5
+									]),
+						$Failed
+					];
+				If[
+					FailureQ[imageDimensions],
+					Return[{$Failed, $Failed}];
+				];
+			];
+
+			(* return byteArrayResult and imageDimensions *)
+			Return[{byteArrayResult, imageDimensions}];
 		];
 
 	(* generate HTML for the rasterized form of a result *)
@@ -265,11 +328,13 @@ If[
 				(* the rasterization of result *)
 				imageData,
 				(* the rasterization of result in base 64 *)
-				imageDataInBase64
+				imageDataInBase64,
+				(* the dimensions of the image *)
+				imageDimensions
 			},
 
 			(* rasterize the result *)
-			imageData =
+			{imageData, imageDimensions} =
 				toImageData[
 					$trueFormatType[result]
 				];
@@ -279,7 +344,7 @@ If[
 				imageInBase64 = BaseEncode[imageData];
 				,
 				(* if the rasterization did fail, try to rasterize result with Shallow *)
-				imageData =
+				{imageData, imageDimensions} =
 					toImageData[
 						$trueFormatType[Shallow[result]]
 					];
@@ -289,7 +354,7 @@ If[
 					imageInBase64 = BaseEncode[imageData];
 					,
 					(* if the rasterization did fail, try to rasterize $Failed *)
-					imageData =
+					{imageData, imageDimensions} =
 						toImageData[
 							$trueFormatType[$Failed]
 						];
@@ -308,8 +373,15 @@ If[
 			Return[
 				StringJoin[
 					(* display a inlined PNG image encoded in base64 *)
-					"<img alt=\"Output\" src=\"data:image/png;base64,",
-					(* the rasterized form of the result, converted to base64 *)
+					"<img ",
+					(* provide the image dimensions to use *)
+					If[
+						!FailureQ[imageDimensions],
+						{"width=\"", First[imageDimensions], "\" height=\"", Last[imageDimensions], "\" "},
+						{}
+					],
+					(* provide the rasterized form of the result, converted to base64, and other information *)
+					"alt=\"Output\" src=\"data:image/png;base64,",
 					imageInBase64,
 					(* end the element *)
 					"\">"
