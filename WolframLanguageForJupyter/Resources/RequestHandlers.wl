@@ -196,9 +196,8 @@ If[
 						"execution_count" -> First[totalResult["EvaluationResultOutputLineIndices"]],
 						(* generate HTML of results and messages *)
 						"data" ->
-							{"text/html" -> 
-								(* if there are multiple results, output as Out[1/n]:, Out[2/n]:, ..., Out[n/n]: *)
-								(* otherwise, just display the single error message and/or single result *)
+							{"text/html" ->
+								(* output the results in a grid *)
 								If[
 									Length[totalResult["EvaluationResult"]] > 1,
 									StringJoin[
@@ -206,7 +205,7 @@ If[
 										"<style>
 											.grid-container {
 												display: inline-grid;
-												grid-template-columns: auto auto;
+												grid-template-columns: auto;
 											}
 										</style>
 
@@ -218,20 +217,11 @@ If[
 										(* display the output lines *)
 										Table[
 											{
-												(* start the left grid item *)
-												"<div class=\"grid-item\">
-													<div class=\"prompt output_prompt\" style=\"text-align:left;padding:0em;padding-right:20px;line-height:20px;\">
-														Out[",
-												(* show the output index for this output line *)
-														ToString[totalResult["EvaluationResultOutputLineIndices"][[outIndex]]],
-												(* end the left grid item, and start the right grid item *)
-														"]:
-													</div>
-												</div>
-												<div class=\"grid-item\">",
+												(* start the grid item *)
+												"<div class=\"grid-item\">",
 												(* show the output line *)
 												toOut[totalResult["EvaluationResult"][[outIndex]]],
-												(* end the right grid item *)
+												(* end the grid item *)
 												"</div>"
 											},
 											{outIndex, 1, Length[totalResult["EvaluationResult"]]}
