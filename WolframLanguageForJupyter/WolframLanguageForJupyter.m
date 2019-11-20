@@ -139,7 +139,7 @@ splitPath :=
 
 (* find Jupyter installation path *)
 (* returns above *)
-findJupyerPath[] := 
+findJupyterPath[] := 
 	SelectFirst[
 		splitPath,
 		(* check every directory in PATH to see if a Jupyter binary is a member *)
@@ -211,7 +211,7 @@ configureJupyter[specs_Association, removeQ_?BooleanQ, removeAllQ_?BooleanQ] :=
 		(* if no Jupyter installation path provided, determine it from PATH *)
 		If[
 			MissingQ[jupyterPath],
-			jupyterPath = findJupyerPath[];
+			jupyterPath = findJupyterPath[];
 			(* if Jupyter not on PATH, message *)
 			If[MissingQ[jupyterPath],
 				Message[ConfigureJupyter::notfound, "Jupyter"];
