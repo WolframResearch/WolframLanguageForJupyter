@@ -19,12 +19,21 @@ There are **two** ways to make the Wolfram Language available in Jupyter:
 
 ## Method 1: Using `wolframscript`
 
-Clone the repository
+On macOS/Unix: Clone the repository
     git clone https://github.com/WolframResearch/WolframLanguageForJupyter.git
-
-Run the following command in your shell to make the Wolfram Language engine available to Jupyter:
+    Run the following command in your shell to make the Wolfram Language engine available to Jupyter:
   
-    ./configure-jupyter.wls add
+    	./configure-jupyter.wls add
+
+On Windows: 
+	Follow the fist two steps [here](https://help.github.com/en/github/creating-cloning-and-archiving-repositories/cloning-a-repository), and on the the third step select `Download Zip`, and unzip the file using a tool for Windows.
+	Open PowerShell in the directory of the unzipped folder
+	
+	Run the following command in your shell to make the Wolfram Language engine available to Jupyter:
+  
+    		.\configure-jupyter.wls add
+
+
 
 **Notes:** 
 
