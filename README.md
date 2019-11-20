@@ -19,9 +19,21 @@ There are **two** ways to make the Wolfram Language available in Jupyter:
 
 ## Method 1: Using `wolframscript`
 
-Run the following command to make the Wolfram Language engine available to Jupyter:
+On macOS/Unix: Clone the repository
+    git clone https://github.com/WolframResearch/WolframLanguageForJupyter.git
+    Run the following command in your shell to make the Wolfram Language engine available to Jupyter:
   
-    configure-jupyter.wls add
+    	./configure-jupyter.wls add
+
+On Windows: 
+	Follow the fist two steps [here](https://help.github.com/en/github/creating-cloning-and-archiving-repositories/cloning-a-repository), and on the the third step select `Download Zip`, and unzip the file using a tool for Windows.
+	Open PowerShell in the directory of the unzipped folder
+	
+	Run the following command in your shell to make the Wolfram Language engine available to Jupyter:
+  
+    		.\configure-jupyter.wls add
+
+
 
 **Notes:** 
 
@@ -31,7 +43,7 @@ Run the following command to make the Wolfram Language engine available to Jupyt
 
 For more configuration options run:
 
-    configure-jupyter.wls help
+    ./configure-jupyter.wls help
 
 ## Method 2: Using Wolfram Language
 
@@ -39,7 +51,7 @@ You can download the latest version of the paclet here:
 
 https://github.com/WolframResearch/WolframLanguageForJupyter/releases
 
-To install the paclet, run the following command (replacing x, y, and z with the correct values):
+To install the paclet, run the following command with Wolfram Language (replacing x, y, and z with the correct values):
 
 	PacletInstall["WolframLanguageForJupyter-x.y.z.paclet"]
 
@@ -69,7 +81,7 @@ The following command should now list the Wolfram Engine:
 
 The output should include a line like this:
 
-    wolframlanguage-11.3.0    C:\ProgramData\jupyter\kernels\wolframlanguage-11.3.0
+    wolframlanguage12    C:\ProgramData\jupyter\kernels\wolframlanguage12
 
 To test your installation, run the following command: 
 
@@ -95,7 +107,7 @@ Any messages that occur during evaluation are displayed:
 
 To build the WolframLanguageForJupyter paclet file yourself, run:
 
-	configure-jupyter.wls build
+	./configure-jupyter.wls build
 
 This creates the `WolframLanguageForJupyter-x.y.z.paclet` file (use the `PacletInfo.m` to increment the version).
 
@@ -105,7 +117,7 @@ This creates the `WolframLanguageForJupyter-x.y.z.paclet` file (use the `PacletI
 
 Run the following command to remove the Wolfram Language engine from Jupyter:
 
-    configure-jupyter.wls remove
+    ./configure-jupyter.wls remove
 
 ## Method 2: Using Wolfram Language
 
