@@ -36,7 +36,7 @@ Get[FileNameJoin[{DirectoryName[$InputFileName], "Initialization.wl"}]]; (* init
 Get[FileNameJoin[{DirectoryName[$InputFileName], "SocketUtilities.wl"}]]; (* sendFrame *)
 Get[FileNameJoin[{DirectoryName[$InputFileName], "MessagingUtilities.wl"}]]; (* getFrameAssoc, createReplyFrame *)
 
-Get[FileNameJoin[{DirectoryName[$InputFileName], "RequestHandlers.wl"}]]; (* executeRequestHandler, completeRequestHandler *)
+Get[FileNameJoin[{DirectoryName[$InputFileName], "RequestHandlers.wl"}]]; (* isCompleteRequestHandler, executeRequestHandler, completeRequestHandler *)
 
 (************************************
 	private symbols
@@ -87,11 +87,10 @@ loop[] :=
 							bannerWarning,
 							"\"}"
 						];,
-					(* if asking if the input is complete, respond "unknown" *)
+					(* if asking if the input is complete (relevant for jupyter-console), respond appropriately *)
 					"is_complete_request",
-					(* TODO: add syntax-Q checking *)
-					loopState["replyMsgType"] = "is_complete_reply";
-					loopState["replyContent"] = "{\"status\":\"unknown\"}";,
+					(* isCompleteRequestHandler will read and update loopState *)
+					isCompleteRequestHandler[];,
 					(* if asking the kernel to execute something, use executeRequestHandler *)
 					"execute_request",
 					(* executeRequestHandler will read and update loopState *)
@@ -140,9 +139,10 @@ loop[] :=
 				sendFrame[shellSocket, shellReplyFrame];
 
 				(* if an ioPubReplyFrame was created, send it on the IO Publish socket *)
-				If[!(loopState["ioPubReplyFrame"] === Association[]),
+				If[
+					loopState["ioPubReplyFrame"] =!= Association[],
 					sendFrame[ioPubSocket, loopState["ioPubReplyFrame"]];
-					(* reset ioPubReplyFrame *)
+					(* -- also, reset ioPubReplyFrame *)
 					loopState["ioPubReplyFrame"] = Association[];
 				];
 

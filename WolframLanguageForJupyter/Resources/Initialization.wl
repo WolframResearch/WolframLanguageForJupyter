@@ -185,6 +185,13 @@ If[
 			(* flag for if WolframLanguageForJupyter should shut down *)
 			"doShutdown" -> False,
 
+			(* flag for whether to redirect messages, or to, at the end of the execution of an input,
+				bundle them with the result *)
+			"redirectMessages" -> True,
+
+			(* flag for if an is_complete_request has ever been sent to the kernel *)
+			"isCompleteRequestSent" -> False,
+
 			(* local to an iteration *)
 			(* a received frame as an Association *)
 			"frameAssoc" -> Null,

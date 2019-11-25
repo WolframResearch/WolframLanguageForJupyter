@@ -9,9 +9,10 @@ Description:
 		notebooks
 Symbols defined:
 	textQ,
-	toOutText,
+	toText,
+	toOutTextHTML,
 	toImageData,
-	toOutImage
+	toOutImageHTML
 *************************************************)
 
 (************************************
@@ -178,20 +179,23 @@ If[
 		results as text and images
 *************************************)
 
+	(* generate the textual form of a result *)
+	(* NOTE: the OutputForm (which ToString uses) of any expressions wrapped with, say, InputForm should
+		be identical to the string result of an InputForm-wrapped expression itself *)
+	toText[result_] := ToString[If[Head[result] =!= TeXForm, $trueFormatType[result], result]];
+
 	(* generate HTML for the textual form of a result *)
-	toOutText[result_] := 
+	toOutTextHTML[result_] := 
 		Module[
-			{isTeXWrapped, isTeXFinal},
-			(* check if this result is wrapped with TeXForm *)
-			isTeXWrapped = (Head[result] === TeXForm);
-			(* check if this result should be marked, in the end, as TeX *)
-			isTeXFinal = isTeXWrapped || $outputSetToTeXForm;
+			{isTeX},
+			(* check if this result should be marked as TeX *)
+			isTeX = (Head[result] === TeXForm) || $outputSetToTeXForm;
 			Return[
 				StringJoin[
 
 					(* mark this result as preformatted only if it isn't TeX *)
 					If[
-						!isTeXFinal,
+						!isTeX,
 						{
 							(* preformatted *)
 							"<pre style=\"",
@@ -203,23 +207,21 @@ If[
 					],
 
 					(* mark the text as TeX, if is TeX *)
-					If[isTeXFinal, "&#36;&#36;", ""],
+					If[isTeX, "&#36;&#36;", ""],
 
 					(* the textual form of the result *)
-					(* NOTE: the OutputForm (which ToString uses) of any expressions wrapped with, say, InputForm should
-						be identical to the string result of an InputForm-wrapped expression itself *)
 					({"&#", ToString[#1], ";"} & /@ 
 						ToCharacterCode[
-							(* toStringUsingOutput[result] *) ToString[If[!isTeXWrapped, $trueFormatType[result], result]],
+							(* toStringUsingOutput[result] *) toText[result],
 							"Unicode"
 						]),
 
 					(* mark the text as TeX, if is TeX *)
-					If[isTeXFinal, "&#36;&#36;", ""],
+					If[isTeX, "&#36;&#36;", ""],
 
 					(* mark this result as preformatted only if it isn't TeX *)
 					If[
-						!isTeXFinal,
+						!isTeX,
 						{
 							(* end the element *)
 							"</pre>"
@@ -259,7 +261,7 @@ If[
 		];
 
 	(* generate HTML for the rasterized form of a result *)
-	toOutImage[result_] := 
+	toOutImageHTML[result_] := 
 		Module[
 			{
 				(* the rasterization of result *)

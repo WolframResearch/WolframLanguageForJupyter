@@ -2,9 +2,10 @@
 				RequestHandlers.wl
 *************************************************
 Description:
-	Handlers for message frames of type
-		"x_request" arriving from Jupyter
+	Handlers for message frames of the form
+		"*_request" arriving from Jupyter
 Symbols defined:
+	isCompleteRequestHandler,
 	executeRequestHandler,
 	completeRequestHandler
 *************************************************)
@@ -29,10 +30,10 @@ If[
 	Get[FileNameJoin[{DirectoryName[$InputFileName], "SocketUtilities.wl"}]]; (* sendFrame *)
 	Get[FileNameJoin[{DirectoryName[$InputFileName], "MessagingUtilities.wl"}]]; (* createReplyFrame *)
 
-	Get[FileNameJoin[{DirectoryName[$InputFileName], "EvaluationUtilities.wl"}]]; (* simulatedEvaluate *)
+	Get[FileNameJoin[{DirectoryName[$InputFileName], "EvaluationUtilities.wl"}]]; (* redirectPrint, redirectMessages, simulatedEvaluate *)
 
-	Get[FileNameJoin[{DirectoryName[$InputFileName], "OutputHandlingUtilities.wl"}]]; (* textQ, toOutText, toOutImage,
-																							containsPUAQ *)
+	Get[FileNameJoin[{DirectoryName[$InputFileName], "OutputHandlingUtilities.wl"}]]; (* textQ, toOutTextHTML, toOutImageHTML,
+																							toText, containsPUAQ *)
 
 	Get[FileNameJoin[{DirectoryName[$InputFileName], "CompletionUtilities.wl"}]]; (* rewriteNamedCharacters *)
 
@@ -44,10 +45,57 @@ If[
 	Begin["`Private`"];
 
 (************************************
+	handler for is_complete_requests
+*************************************)
+
+	(* handle is_complete_request message frames received on the shell socket *)
+	isCompleteRequestHandler[] :=
+		Module[
+			{
+				(* the length of the code string to check completeness for *)
+				stringLength,
+				(* the value returned by SyntaxLength[] on the code string to check completeness for *)
+				syntaxLength
+			},
+
+			(* mark loopState["isCompleteRequestSent"] as True *)
+			loopState["isCompleteRequestSent"] = True;
+
+			(* set the appropriate reply type *)
+			loopState["replyMsgType"] = "is_complete_reply";
+
+			(* determine the length of the code string *)
+			stringLength = StringLength[loopState["frameAssoc"]["content"]["code"]];
+			(* determine the SyntaxLength[] value for the code string *)
+			syntaxLength = SyntaxLength[loopState["frameAssoc"]["content"]["code"]];
+
+			(* test the value of syntaxLength to determine the completeness of the code string,
+				setting the content of the reply appropriately *)
+			Which[
+				(* if the above values could not be correctly determined,
+					the completeness status of the code string is unknown *)
+				!IntegerQ[stringLength] || !IntegerQ[syntaxLength],
+					loopState["replyContent"] = "{\"status\":\"unknown\"}";,
+				(* if the SyntaxLength[] value for a code string is greater than its actual length,
+					the code string is incomplete *)
+				syntaxLength > stringLength,
+					loopState["replyContent"] = "{\"status\":\"incomplete\"}";,
+				(* if the SyntaxLength[] value for a code string is less than its actual length,
+					the code string contains a syntax error (or is "invalid") *)
+				syntaxLength < stringLength,
+					loopState["replyContent"] = "{\"status\":\"invalid\"}";,
+				(* if the SyntaxLength[] value for a code string is equal to its actual length,
+					the code string is complete and correct *)
+				syntaxLength == stringLength,
+					loopState["replyContent"] = "{\"status\":\"complete\"}";
+			];
+		];
+
+(************************************
 	handler for execute_requests
 *************************************)
 
-	(* handle execute_request messages frames received on the shell socket *)
+	(* handle execute_request message frames received on the shell socket *)
 	executeRequestHandler[] :=
 		Module[
 			{
@@ -64,7 +112,10 @@ If[
 						the total number of indices consumed by this evaluation ("ConsumedIndices"),
 						generated messages ("GeneratedMessages")
 				*)
-				totalResult
+				totalResult,
+
+				(* flag for if there are any unreported error messages after execution of the input *)
+				unreportedErrorMessages
 			},
 
 			(* set the appropriate reply type *)
@@ -83,34 +134,31 @@ If[
 				];
 
 			(* redirect Print so that it prints in the Jupyter notebook *)
-			loopState["printFunction"] = 
-				(
-					(* send a frame *)
-					sendFrame[
-						(* on the IO Publish socket *)
-						ioPubSocket,
-						(* create the frame *)
-						createReplyFrame[
-								(* using the current source frame *)
-								loopState["frameAssoc"],
-								(* see https://jupyter-client.readthedocs.io/en/stable/messaging.html#streams-stdout-stderr-etc *)
-								(* with a message type of "stream" *)
-								"stream",
-								(* and with message content that tells Jupyter what to Print, and to use stdout *)
-								ExportString[
-									Association[
-											"name" -> "stdout",
-											"text" -> #1
-									],
-									"JSON",
-									"Compact" -> True
-								],
-								(* and without branching off *)
-								False
+			loopState["printFunction"] = (redirectPrint[loopState["frameAssoc"], #1] &);
+
+			(* if an is_complete_request has been sent, assume jupyter-console is running the kernel,
+				and redirect messages *)
+			If[
+				loopState["isCompleteRequestSent"],
+				loopState["redirectMessages"] = True;
+			];
+
+			(* if loopState["redirectMessages"] is True,
+				update Jupyter explicitly with any errors that occur DURING the execution of the input *)
+			If[
+				loopState["redirectMessages"],
+				Internal`$MessageFormatter =
+					(
+						redirectMessages[
+							loopState["frameAssoc"],
+							#1,
+							#2,
+							(* add a newline if loopState["isCompleteRequestSent"] *)
+							loopState["isCompleteRequestSent"]
 						]
-					]
-					&
-				);
+						&
+					);
+			];
 
 			(* evaluate the input, and store the total result in totalResult *)
 			totalResult = simulatedEvaluate[loopState["frameAssoc"]["content"]["code"]];
@@ -118,17 +166,27 @@ If[
 			(* restore printFunction to empty *)
 			loopState["printFunction"] = Function[#;];
 
+			(* check if there are any unreported error messages *)
+			unreportedErrorMessages =
+				(
+					(* ... because messages are not being redirected *)
+					(!loopState["redirectMessages"]) &&
+						(* ... and because at least one message was generated *)
+						(StringLength[totalResult["GeneratedMessages"]] > 0)
+				);
+
 			(* generate an HTML form of the message text *)
 			errorMessage =
-				If[StringLength[totalResult["GeneratedMessages"]] == 0,
-					(* if there are no messages, no need to format anything *)
+				If[
+					!unreportedErrorMessages,
+					(* if there are no unreported error messages, there is no need to format them *)
 					{},
 					(* build the HTML form of the message text *)
 					{
 						(* preformatted *)
 						"<pre style=\"",
 						(* the color of the text should be red, and should use Courier *)
-						StringJoin[{"&#",ToString[#1], ";"} & /@ ToCharacterCode["color:red; font-family: \"Courier New\",Courier,monospace;", "UTF-8"]], 
+						StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode["color:red; font-family: \"Courier New\",Courier,monospace;", "UTF-8"]], 
 						(* end pre tag *)
 						"\">",
 						(* the generated messages  *)
@@ -141,6 +199,18 @@ If[
 			(* if there are no results, do not send anything on the IO Publish socket and return *)
 			If[
 				Length[totalResult["EvaluationResultOutputLineIndices"]] == 0,
+				(* send any unreported error messages *)
+				If[unreportedErrorMessages,
+					redirectMessages[
+						loopState["frameAssoc"],
+						"",
+						totalResult["GeneratedMessages"],
+						(* do not add a newline *)
+						False,
+						(* drop message name *)
+						True
+					];
+				];
 				(* increment loopState["executionCount"] as needed *)
 				loopState["executionCount"] += totalResult["ConsumedIndices"];
 				Return[];
@@ -161,99 +231,115 @@ If[
 							"execution_count" -> First[totalResult["EvaluationResultOutputLineIndices"]],
 							(* HTML code to embed output uploaded to the Cloud in the Jupyter notebook *)
 							"data" ->
-								{"text/html" ->
-									StringJoin[
-										(* display any generated messages as inlined PNG images encoded in base64 *)
-										"<div><img alt=\"\" src=\"data:image/png;base64,", 
-										(* rasterize the generated messages in a dark red color, and convert the resulting image to base64*)
-										BaseEncode[ExportByteArray[Rasterize[Style[totalResult["GeneratedMessages"], Darker[Red]]], "PNG"]],
-										(* end image element *)
-										"\">",
-										(* embed the cloud object *)
-										EmbedCode[CloudDeploy[totalResult["EvaluationResult"]], "HTML"][[1]]["CodeSection"]["Content"],
-										(* end the whole element *)
-										"</div>"
-									]
+								{
+									"text/html" ->
+										StringJoin[
+											(* display any generated messages as inlined PNG images encoded in base64 *)
+											"<div><img alt=\"\" src=\"data:image/png;base64,", 
+											(* rasterize the generated messages in a dark red color, and convert the resulting image to base64*)
+											BaseEncode[ExportByteArray[Rasterize[Style[totalResult["GeneratedMessages"], Darker[Red]]], "PNG"]],
+											(* end image element *)
+											"\">",
+											(* embed the cloud object *)
+											EmbedCode[CloudDeploy[totalResult["EvaluationResult"]], "HTML"][[1]]["CodeSection"]["Content"],
+											(* end the whole element *)
+											"</div>"
+										],
+									"text/plain" -> ""
 								},
 							(* no metadata *)
-							"metadata" -> {"text/html" -> {}}
+							"metadata" -> {"text/html" -> {}, "text/plain" -> {}}
 						],
 						"JSON",
 						"Compact" -> True
 					];
 				,
 				(* if every output line can be formatted as text, use a function that converts the output to text *)
-				(* TODO: allow for mixing text and image results *)
 				(* otherwise, use a function that converts the output to an image *)
+				(* TODO: allow for mixing text and image results *)
 				If[AllTrue[totalResult["EvaluationResult"], textQ],
-					toOut = toOutText,
-					toOut = toOutImage
+					toOut = toOutTextHTML,
+					toOut = toOutImageHTML
 				];
 				(* prepare the content for a reply message frame to be sent on the IO Publish socket *)
 				ioPubReplyContent = ExportString[
 					Association[
 						(* the first output index *)
 						"execution_count" -> First[totalResult["EvaluationResultOutputLineIndices"]],
-						(* generate HTML of results and messages *)
+						(* the data representing the results and messages *)
 						"data" ->
-							{"text/html" ->
-								(* output the results in a grid *)
-								If[
-									Length[totalResult["EvaluationResult"]] > 1,
-									StringJoin[
-										(* add grid style *)
-										"<style>
-											.grid-container {
-												display: inline-grid;
-												grid-template-columns: auto;
-											}
-										</style>
+							{
+								(* generate HTML for the results and messages *)
+								"text/html" ->
+									(* output the results in a grid *)
+									If[
+										Length[totalResult["EvaluationResult"]] > 1,
+										StringJoin[
+											(* add grid style *)
+											"<style>
+												.grid-container {
+													display: inline-grid;
+													grid-template-columns: auto;
+												}
+											</style>
 
-										<div>",
-										(* display error message *)
-										errorMessage,
-										(* start the grid *)
-										"<div class=\"grid-container\">",
-										(* display the output lines *)
+											<div>",
+											(* display error message *)
+											errorMessage,
+											(* start the grid *)
+											"<div class=\"grid-container\">",
+											(* display the output lines *)
+											Table[
+												{
+													(* start the grid item *)
+													"<div class=\"grid-item\">",
+													(* show the output line *)
+													toOut[totalResult["EvaluationResult"][[outIndex]]],
+													(* end the grid item *)
+													"</div>"
+												},
+												{outIndex, 1, Length[totalResult["EvaluationResult"]]}
+											],
+											(* end the element *)
+											"</div></div>"
+										],
+										StringJoin[
+											(* start the element *)
+											"<div>",
+											(* display error message *)
+											errorMessage,
+											(* if there are messages, but no results, do not display a result *)
+											If[
+												Length[totalResult["EvaluationResult"]] == 0,
+												"",
+												(* otherwise, display a result *)
+												toOut[First[totalResult["EvaluationResult"]]]
+											],
+											(* end the element *)
+											"</div>"
+										]
+									],
+								(* provide, as a backup, plain text for the results *)
+								"text/plain" ->
+									StringJoin[
 										Table[
 											{
-												(* start the grid item *)
-												"<div class=\"grid-item\">",
-												(* show the output line *)
-												toOut[totalResult["EvaluationResult"][[outIndex]]],
-												(* end the grid item *)
-												"</div>"
+												toText[totalResult["EvaluationResult"][[outIndex]]],
+												(* -- also, suppress newline if this is the last result *)
+												If[outIndex != Length[totalResult["EvaluationResult"]], "\n", ""]
 											},
 											{outIndex, 1, Length[totalResult["EvaluationResult"]]}
-										],
-										(* end the element *)
-										"</div></div>"
-									],
-									StringJoin[
-										(* start the element *)
-										"<div>",
-										(* display error message *)
-										errorMessage,
-										(* if there are messages, but no results, do not display a result *)
-										If[
-											Length[totalResult["EvaluationResult"]] == 0,
-											"",
-											(* otherwise, display a result *)
-											toOut[First[totalResult["EvaluationResult"]]]
-										],
-										(* end the element *)
-										"</div>"
+										]
 									]
-								]
 							},
 						(* no metadata *)
-						"metadata" -> {"text/html" -> {}}
+						"metadata" -> {"text/html" -> {}, "text/plain" -> {}}
 					],
 					"JSON",
 					"Compact" -> True
 				];
 			];
-
+			
 			(* create frame from ioPubReplyContent *)
 			loopState["ioPubReplyFrame"] = 
 				createReplyFrame[
@@ -275,7 +361,7 @@ If[
 	handler for complete_requests
 *************************************)
 
-	(* handle complete_request messages frames received on the shell socket *)
+	(* handle complete_request message frames received on the shell socket *)
 	completeRequestHandler[] :=
 		Module[
 			{
