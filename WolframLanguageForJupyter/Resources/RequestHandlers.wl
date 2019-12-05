@@ -118,30 +118,20 @@ If[
 				unreportedErrorMessages
 			},
 
-			(* set the appropriate reply type *)
-			loopState["replyMsgType"] = "execute_reply";
-
-			(* set the content of the reply to information about WolframLanguageForJupyter's execution of the input *)
-			loopState["replyContent"] = 
-				ExportString[
-					Association[
-						"status" -> "ok",
-						"execution_count" -> loopState["executionCount"],
-						"user_expressions" -> {}
-					], 
-					"JSON",
-					"Compact" -> True
-				];
-
-			(* redirect Print so that it prints in the Jupyter notebook *)
-			loopState["printFunction"] = (redirectPrint[loopState["frameAssoc"], #1] &);
-
 			(* if an is_complete_request has been sent, assume jupyter-console is running the kernel,
-				and redirect messages *)
+				redirect messages, and handle any "Quit", "Exit", "quit" or "exit" inputs *)
 			If[
 				loopState["isCompleteRequestSent"],
 				loopState["redirectMessages"] = True;
+				loopState["askExit"] =
+					StringMatchQ[
+						loopState["frameAssoc"]["content"]["code"],
+						"Quit" | "Exit" | "quit" | "exit"
+					];
 			];
+
+			(* redirect Print so that it prints in the Jupyter notebook *)
+			loopState["printFunction"] = (redirectPrint[loopState["frameAssoc"], #1] &);
 
 			(* if loopState["redirectMessages"] is True,
 				update Jupyter explicitly with any errors that occur DURING the execution of the input *)
@@ -163,8 +153,29 @@ If[
 			(* evaluate the input, and store the total result in totalResult *)
 			totalResult = simulatedEvaluate[loopState["frameAssoc"]["content"]["code"]];
 			
-			(* restore printFunction to empty *)
-			loopState["printFunction"] = Function[#;];
+			(* restore printFunction to False *)
+			loopState["printFunction"] = False;
+
+			(* unset Internal`$MessageFormatter *)
+			Unset[Internal`$MessageFormatter];
+
+			(* set the appropriate reply type *)
+			loopState["replyMsgType"] = "execute_reply";
+
+			(* set the content of the reply to information about WolframLanguageForJupyter's execution of the input *)
+			loopState["replyContent"] = 
+				ExportString[
+					Association[
+						"status" -> "ok",
+						"execution_count" -> loopState["executionCount"],
+						"user_expressions" -> {},
+						(* see https://jupyter-client.readthedocs.io/en/stable/messaging.html#payloads-deprecated *)
+						(* if the "askExit" flag is True, add an "ask_exit" payload *)
+						"payload" -> If[loopState["askExit"], {Association["source" -> "ask_exit", "keepkernel" -> False]}, {}]
+					],
+					"JSON",
+					"Compact" -> True
+				];
 
 			(* check if there are any unreported error messages *)
 			unreportedErrorMessages =
@@ -174,6 +185,30 @@ If[
 						(* ... and because at least one message was generated *)
 						(StringLength[totalResult["GeneratedMessages"]] > 0)
 				);
+
+			(* if there are no results, or if the "askExit" flag is True,
+				do not send anything on the IO Publish socket and return *)
+			If[
+				(Length[totalResult["EvaluationResultOutputLineIndices"]] == 0) ||
+					(loopState["askExit"]),
+				(* set the "askExit" flag to False *)
+				loopState["askExit"] = False;
+				(* send any unreported error messages *)
+				If[unreportedErrorMessages,
+					redirectMessages[
+						loopState["frameAssoc"],
+						"",
+						totalResult["GeneratedMessages"],
+						(* do not add a newline *)
+						False,
+						(* drop message name *)
+						True
+					];
+				];
+				(* increment loopState["executionCount"] as needed *)
+				loopState["executionCount"] += totalResult["ConsumedIndices"];
+				Return[];
+			];
 
 			(* generate an HTML form of the message text *)
 			errorMessage =
@@ -195,26 +230,6 @@ If[
 						"</pre>"
 					}
 				];
-
-			(* if there are no results, do not send anything on the IO Publish socket and return *)
-			If[
-				Length[totalResult["EvaluationResultOutputLineIndices"]] == 0,
-				(* send any unreported error messages *)
-				If[unreportedErrorMessages,
-					redirectMessages[
-						loopState["frameAssoc"],
-						"",
-						totalResult["GeneratedMessages"],
-						(* do not add a newline *)
-						False,
-						(* drop message name *)
-						True
-					];
-				];
-				(* increment loopState["executionCount"] as needed *)
-				loopState["executionCount"] += totalResult["ConsumedIndices"];
-				Return[];
-			];
 
 			(* format output as purely text, image, or cloud interface *)
 			If[

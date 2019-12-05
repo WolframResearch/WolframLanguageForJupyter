@@ -77,20 +77,54 @@ If[
 	Print[ourArgs___, opts:OptionsPattern[]] :=
 		Block[
 			{
-				$inPrint=True,
-				$Output={OpenWrite[FormatType->OutputForm]}
+				$inPrint = True,
+				$Output
 			},
 			If[
-				!FailureQ[First[$Output]],
+				loopState["printFunction"] =!= False,
+				$Output = {OpenWrite[FormatType -> OutputForm]};
+				If[
+					!FailureQ[First[$Output]],
 					Print[ourArgs, opts];
 					loopState["printFunction"][
 						Import[$Output[[1,1]], "String"]
 					];
+					Close[First[$Output]];
+				];
 			];
-			Close[First[$Output]];
-			Null
 		] /; !TrueQ[$inPrint];
 	Protect[Print];
+
+(************************************
+	versions of Quit and Exit that
+		ask the Jupyter console
+		to quit, if running under
+		a Jupyter console
+*************************************)
+
+	Unprotect[Quit];
+	Quit[ourArgs___, opts:OptionsPattern[]] :=
+		Block[
+			{$inQuit = True},
+			If[
+				loopState["isCompleteRequestSent"],
+				loopState["askExit"] = True;,
+				Quit[ourArgs, opts];
+			];
+		] /; !TrueQ[$inQuit];
+	Protect[Quit];
+
+	Unprotect[Exit];
+	Exit[ourArgs___, opts:OptionsPattern[]] :=
+		Block[
+			{$inExit = True},
+			If[
+				loopState["isCompleteRequestSent"],
+				loopState["askExit"] = True;,
+				Exit[ourArgs, opts];
+			];
+		] /; !TrueQ[$inExit];
+	Protect[Exit];
 
 (************************************
 	versions of Throw and
@@ -119,7 +153,7 @@ If[
 *************************************)
 
 	(* redirect Print to Jupyter *)
-	redirectPrint[sourceFrame_, printText_] :=
+	redirectPrint[currentSourceFrame_, printText_] :=
 		(* send a frame *)
 		sendFrame[
 			(* on the IO Publish socket *)
