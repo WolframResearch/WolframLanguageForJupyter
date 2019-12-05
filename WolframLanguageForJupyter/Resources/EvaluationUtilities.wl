@@ -101,29 +101,43 @@ If[
 		to quit, if running under
 		a Jupyter console
 *************************************)
-
+	
 	Unprotect[Quit];
-	Quit[ourArgs___, opts:OptionsPattern[]] :=
+	Quit[ourArgs___] :=
 		Block[
 			{$inQuit = True},
 			If[
 				loopState["isCompleteRequestSent"],
 				loopState["askExit"] = True;,
-				Quit[ourArgs, opts];
+				Quit[ourArgs];
 			];
-		] /; !TrueQ[$inQuit];
+		] /;
+			(
+				(!TrueQ[$inQuit]) &&
+					(
+						(Length[{ourArgs}] == 0) ||
+							((Length[{ourArgs}] == 1) && IntegerQ[ourArgs])
+					)
+			);
 	Protect[Quit];
 
 	Unprotect[Exit];
-	Exit[ourArgs___, opts:OptionsPattern[]] :=
+	Exit[ourArgs___] :=
 		Block[
 			{$inExit = True},
 			If[
 				loopState["isCompleteRequestSent"],
 				loopState["askExit"] = True;,
-				Exit[ourArgs, opts];
+				Exit[ourArgs];
 			];
-		] /; !TrueQ[$inExit];
+		] /;
+			(
+				(!TrueQ[$inExit]) &&
+					(
+						(Length[{ourArgs}] == 0) ||
+							((Length[{ourArgs}] == 1) && IntegerQ[ourArgs])
+					)
+			);
 	Protect[Exit];
 
 (************************************
