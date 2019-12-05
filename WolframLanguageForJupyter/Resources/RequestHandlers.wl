@@ -123,11 +123,16 @@ If[
 			If[
 				loopState["isCompleteRequestSent"],
 				loopState["redirectMessages"] = True;
-				loopState["askExit"] =
+				If[
 					StringMatchQ[
 						loopState["frameAssoc"]["content"]["code"],
 						"Quit" | "Exit" | "quit" | "exit"
-					];
+					],
+					loopState["replyMsgType"] = "execute_reply";
+					(* NOTE: uses payloads *)
+					loopState["replyContent"] = ExportString[Association["status" -> "ok", "execution_count" -> loopState["executionCount"], "user_expressions" -> {}, "payload" -> {Association["source" -> "ask_exit", "keepkernel" -> False]}], "JSON", "Compact" -> True];
+					Return[];
+				];
 			];
 
 			(* redirect Print so that it prints in the Jupyter notebook *)
@@ -171,6 +176,7 @@ If[
 						"user_expressions" -> {},
 						(* see https://jupyter-client.readthedocs.io/en/stable/messaging.html#payloads-deprecated *)
 						(* if the "askExit" flag is True, add an "ask_exit" payload *)
+						(* NOTE: uses payloads *)
 						"payload" -> If[loopState["askExit"], {Association["source" -> "ask_exit", "keepkernel" -> False]}, {}]
 					],
 					"JSON",
