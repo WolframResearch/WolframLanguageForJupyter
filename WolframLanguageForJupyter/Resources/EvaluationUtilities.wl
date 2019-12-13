@@ -9,6 +9,8 @@ Symbols defined:
 	Print,
 	Throw,
 	Catch,
+	redirectPrint,
+	redirectMessages,
 	simulatedEvaluate
 *************************************************)
 
@@ -72,23 +74,71 @@ If[
 	(* redirect Print calls into a message to Jupyter, in order to print in the Jupyter notebook *)
 	(* TODO: review other methods: through EvaluationData or WSTP so we don't redefine Print *)
 	Unprotect[Print];
-	Print[args___, opts:OptionsPattern[]] :=
+	Print[ourArgs___, opts:OptionsPattern[]] :=
 		Block[
 			{
-				$inPrint=True,
-				$Output={OpenWrite[FormatType->OutputForm]}
+				$inPrint = True,
+				$Output
 			},
 			If[
-				!FailureQ[First[$Output]],
-					Print[args, opts];
+				loopState["printFunction"] =!= False,
+				$Output = {OpenWrite[FormatType -> OutputForm]};
+				If[
+					!FailureQ[First[$Output]],
+					Print[ourArgs, opts];
 					loopState["printFunction"][
 						Import[$Output[[1,1]], "String"]
 					];
+					Close[First[$Output]];
+				];
 			];
-			Close[First[$Output]];
-			Null
 		] /; !TrueQ[$inPrint];
 	Protect[Print];
+
+(************************************
+	versions of Quit and Exit that
+		ask the Jupyter console
+		to quit, if running under
+		a Jupyter console
+*************************************)
+	
+	Unprotect[Quit];
+	Quit[ourArgs___] :=
+		Block[
+			{$inQuit = True},
+			If[
+				loopState["isCompleteRequestSent"],
+				loopState["askExit"] = True;,
+				Quit[ourArgs];
+			];
+		] /;
+			(
+				(!TrueQ[$inQuit]) &&
+					(
+						(Length[{ourArgs}] == 0) ||
+							((Length[{ourArgs}] == 1) && IntegerQ[ourArgs])
+					)
+			);
+	Protect[Quit];
+
+	Unprotect[Exit];
+	Exit[ourArgs___] :=
+		Block[
+			{$inExit = True},
+			If[
+				loopState["isCompleteRequestSent"],
+				loopState["askExit"] = True;,
+				Exit[ourArgs];
+			];
+		] /;
+			(
+				(!TrueQ[$inExit]) &&
+					(
+						(Length[{ourArgs}] == 0) ||
+							((Length[{ourArgs}] == 1) && IntegerQ[ourArgs])
+					)
+			);
+	Protect[Exit];
 
 (************************************
 	versions of Throw and
@@ -111,6 +161,96 @@ If[
 			WolframLanguageForJupyter`Private`$ThrowLabel
 		];
 	Protect[Catch];
+
+(************************************
+	redirection utilities
+*************************************)
+
+	(* redirect Print to Jupyter *)
+	redirectPrint[currentSourceFrame_, printText_] :=
+		(* send a frame *)
+		sendFrame[
+			(* on the IO Publish socket *)
+			ioPubSocket,
+			(* create the frame *)
+			createReplyFrame[
+					(* using the current source frame *)
+					currentSourceFrame,
+					(* see https://jupyter-client.readthedocs.io/en/stable/messaging.html#streams-stdout-stderr-etc *)
+					(* with a message type of "stream" *)
+					"stream",
+					(* and with message content that tells Jupyter what to Print, and to use stdout *)
+					ExportString[
+						Association[
+								"name" -> "stdout",
+								"text" -> printText
+						],
+						"JSON",
+						"Compact" -> True
+					],
+					(* and without branching off *)
+					False
+			]
+		];
+
+	(* redirect messages to Jupyter *)
+	redirectMessages[currentSourceFrame_, messageName_, messageText_, addNewline_, dropMessageName_:False] :=
+		Module[
+			{
+				(* string forms of the arguments messageName and messageText *)
+				messageNameString,
+				messageTextString
+			},
+			(* generate string forms of the arguments *)
+			messageNameString = ToString[messageName];
+			messageTextString = ToString[messageText];
+			(* send a frame *)
+			sendFrame[
+				(* on the IO Publish socket *)
+				ioPubSocket,
+				(* create the frame *)
+				createReplyFrame[
+						(* using the current source frame *)
+						currentSourceFrame,
+						(* see https://jupyter-client.readthedocs.io/en/stable/messaging.html#execution-errors *)
+						(* with a message type of "error" *)
+						"error",
+						(* and with appropriate message content *)
+						ExportString[
+							Association[
+									(* use the provided message name here *)
+									"ename" -> messageNameString,
+									(* use the provided message text here *)
+									"evalue" -> messageTextString,
+									(* use the provided message name and message text here (unless dropMessageName) *)
+									"traceback" ->
+										{
+											(* output the message in red *)
+											StringJoin[
+												"\033[0;31m",
+												If[
+													dropMessageName,
+													(* use only the message text here if dropMessageName is True *)
+													messageTextString,
+													(* otherwise, combine the message name and message text *)
+													ToString[System`ColonForm[messageName, messageText]]
+												],
+												(* if addNewline, add a newline *)
+												If[addNewline, "\n", ""],
+												"\033[0m"
+											]
+										}
+							],
+							"JSON",
+							"Compact" -> True
+						],
+						(* and without branching off *)
+						False
+				]
+			];
+			(* ... and return an empty string to the Wolfram Language message system *)
+			Return[""];
+		];
 
 (************************************
 	utilities for splitting

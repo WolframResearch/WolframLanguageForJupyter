@@ -31,12 +31,12 @@ Needs["ZeroMQLink`"]; (* SocketReadMessage *)
 		files
 *************************************)
 
-Get[FileNameJoin[{DirectoryName[$InputFileName], "Initialization.wl"}]]; (* initialize WolframLanguageForJupyter; loopState, bannerWarning, shellSocket, ioPubSocket *)
+Get[FileNameJoin[{DirectoryName[$InputFileName], "Initialization.wl"}]]; (* initialize WolframLanguageForJupyter; loopState, bannerWarning, shellSocket, controlSocket, ioPubSocket *)
 
 Get[FileNameJoin[{DirectoryName[$InputFileName], "SocketUtilities.wl"}]]; (* sendFrame *)
 Get[FileNameJoin[{DirectoryName[$InputFileName], "MessagingUtilities.wl"}]]; (* getFrameAssoc, createReplyFrame *)
 
-Get[FileNameJoin[{DirectoryName[$InputFileName], "RequestHandlers.wl"}]]; (* executeRequestHandler, completeRequestHandler *)
+Get[FileNameJoin[{DirectoryName[$InputFileName], "RequestHandlers.wl"}]]; (* isCompleteRequestHandler, executeRequestHandler, completeRequestHandler *)
 
 (************************************
 	private symbols
@@ -49,24 +49,27 @@ Begin["`Private`"];
 loop[] := 
 	Module[
 		{
+			(* the socket that has become ready *)
+			readySocket,
+
 			(* the raw byte array frame received through SocketReadMessage *)
 			rawFrame,
 
 			(* a frame for sending status updates on the IO Publish socket *)
 			statusReplyFrame,
 
-			(* a frame for sending replies on the shell socket *)
-			shellReplyFrame
+			(* a frame for sending replies on a socket *)
+			replyFrame
 		},
 		While[
 			True,
 			Switch[
 				(* poll sockets until one is ready *)
-				First[SocketWaitNext[{shellSocket}]], 
-				(* if the shell socket is ready, ... *)
-				shellSocket,
+				readySocket = First[SocketWaitNext[{shellSocket, controlSocket}]],
+				(* if the shell socket or control socket is ready, ... *)
+				shellSocket | controlSocket,
 				(* receive a frame *)
-				rawFrame = SocketReadMessage[shellSocket, "Multipart" -> True];
+				rawFrame = SocketReadMessage[readySocket, "Multipart" -> True];
 				(* check for any problems *)
 				If[FailureQ[rawFrame],
 					Quit[];
@@ -87,11 +90,10 @@ loop[] :=
 							bannerWarning,
 							"\"}"
 						];,
-					(* if asking if the input is complete, respond "unknown" *)
+					(* if asking if the input is complete (relevant for jupyter-console), respond appropriately *)
 					"is_complete_request",
-					(* TODO: add syntax-Q checking *)
-					loopState["replyMsgType"] = "is_complete_reply";
-					loopState["replyContent"] = "{\"status\":\"unknown\"}";,
+					(* isCompleteRequestHandler will read and update loopState *)
+					isCompleteRequestHandler[];,
 					(* if asking the kernel to execute something, use executeRequestHandler *)
 					"execute_request",
 					(* executeRequestHandler will read and update loopState *)
@@ -124,8 +126,8 @@ loop[] :=
 				(* send the frame *)
 				sendFrame[ioPubSocket, statusReplyFrame];
 
-				(* create a message frame to send a reply on the shell socket *)
-				shellReplyFrame = 
+				(* create a message frame to send a reply on the socket that became ready *)
+				replyFrame = 
 					createReplyFrame[
 						(* use the current source frame *)
 						loopState["frameAssoc"],
@@ -137,12 +139,13 @@ loop[] :=
 						False
 					];
 				(* send the frame *)
-				sendFrame[shellSocket, shellReplyFrame];
+				sendFrame[readySocket, replyFrame];
 
 				(* if an ioPubReplyFrame was created, send it on the IO Publish socket *)
-				If[!(loopState["ioPubReplyFrame"] === Association[]),
+				If[
+					loopState["ioPubReplyFrame"] =!= Association[],
 					sendFrame[ioPubSocket, loopState["ioPubReplyFrame"]];
-					(* reset ioPubReplyFrame *)
+					(* -- also, reset ioPubReplyFrame *)
 					loopState["ioPubReplyFrame"] = Association[];
 				];
 
@@ -161,10 +164,10 @@ loop[] :=
 					]
 				];
 
-				(* if the doShutdown flag was set as True, shut down*)
+				(* if the doShutdown flag is True, shut down *)
 				If[
 					loopState["doShutdown"],
-					Quit[];
+					Block[{$inQuit = True}, Quit[]];
 				];
 				,
 				_,

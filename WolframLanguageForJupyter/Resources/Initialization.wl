@@ -185,6 +185,13 @@ If[
 			(* flag for if WolframLanguageForJupyter should shut down *)
 			"doShutdown" -> False,
 
+			(* flag for whether to redirect messages, or to, at the end of the execution of an input,
+				bundle them with the result *)
+			"redirectMessages" -> True,
+
+			(* flag for if an is_complete_request has ever been sent to the kernel *)
+			"isCompleteRequestSent" -> False,
+
 			(* local to an iteration *)
 			(* a received frame as an Association *)
 			"frameAssoc" -> Null,
@@ -194,8 +201,11 @@ If[
 			"replyContent" -> Null,
 			(* message relpy frame to send on the IO Publish socket, if it is not Null *)
 			"ioPubReplyFrame" -> Null,
-			(* the function Print should use *)
-			"printFunction" -> Function[#;]
+			(* the redirect function Print should use *)
+			"printFunction" -> False,
+			(* flag for if the Jupyter console (if running under a Jupyter console)
+				should ask the user if it should exit *)
+			"askExit" -> False
 		];
 
 	(* helper utility for applying hooks if they are set *)
@@ -225,7 +235,7 @@ If[
 	bannerWarning = 
 		If[
 			Length[$CommandLine] > 4,
-			"\\n\\nThis Jupyter kernel was installed through the WolframLanguageForJupyter WolframScript script install option. Accordingly, updates to a WolframLanguageForJupyter paclet installed to a Wolfram Engine will not propagate to this installation.",
+			"\\n\\nNote: This Jupyter kernel was installed through the WolframScript install method. Accordingly, updates to a WolframLanguageForJupyter paclet will not affect this kernel.",
 			""
 		];
 
