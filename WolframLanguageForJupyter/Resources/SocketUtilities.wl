@@ -74,7 +74,7 @@ If[
 
 		socketWriteFunction[
 			socket, 
-			StringToByteArray[frame["content"]],
+			If[ByteArrayQ[frame["content"]], frame["content"], StringToByteArray[frame["content"]]],
 			"Multipart" -> False
 		];
 	];

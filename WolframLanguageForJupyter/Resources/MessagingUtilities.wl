@@ -108,7 +108,7 @@ If[
 			(* the message type to be used for the reply message frame *)
 			replyType_String,
 			(* the content to be used for the reply message frame *)
-			replyContent_String,
+			replyContent : (_String | _ByteArray),
 			(* whether to list sourceFrame as a parent for the reply message frame *)
 			branchOff:(True|False)
 		] := 
@@ -157,7 +157,7 @@ If[
 								result["header"],
 								result["pheader"],
 								result["metadata"],
-								result["content"]
+								If[StringQ[result["content"]], result["content"], ByteArrayToString[result["content"]]]
 							]
 						]
 				];
