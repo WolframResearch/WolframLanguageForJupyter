@@ -32,7 +32,8 @@ If[
 
 	Get[FileNameJoin[{DirectoryName[$InputFileName], "Initialization.wl"}]]; (* $canUseFrontEnd, $outputSetToTeXForm,
 																					$outputSetToTraditionalForm,
-																					$trueFormatType, failedInBase64 *)
+																					$trueFormatType, $truePageWidth,
+																					failedInBase64 *)
 
 (************************************
 	private symbols
@@ -182,7 +183,16 @@ If[
 	(* generate the textual form of a result *)
 	(* NOTE: the OutputForm (which ToString uses) of any expressions wrapped with, say, InputForm should
 		be identical to the string result of an InputForm-wrapped expression itself *)
-	toText[result_] := ToString[If[Head[result] =!= TeXForm, $trueFormatType[result], result]];
+	toText[result_] :=
+		ToString[
+			If[
+				Head[result] =!= TeXForm,
+				$trueFormatType[result],
+				result
+			],
+			(* also, use the current PageWidth setting for $Output *)
+			PageWidth -> $truePageWidth
+		];
 
 	(* generate HTML for the textual form of a result *)
 	toOutTextHTML[result_] := 

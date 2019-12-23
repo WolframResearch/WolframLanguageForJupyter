@@ -5,12 +5,14 @@ Description:
 	Initialization for
 		WolframLanguageForJupyter
 Symbols defined:
+	$defaultPageWidth,
 	loopState,
 	applyHook,
 	$canUseFrontEnd,
 	$outputSetToTraditionalForm,
 	$outputSetToTeXForm,
 	$trueFormatType,
+	$truePageWidth,
 	connectionAssoc,
 	bannerWarning,
 	keyString,
@@ -57,7 +59,8 @@ If[
 *************************************)
 
 	(* make Short[] work *)
-	SetOptions[$Output, PageWidth -> 89];
+	$defaultPageWidth = 89;
+	SetOptions[$Output, PageWidth -> $defaultPageWidth];
 
 (* 	do not output messages to the jupyter notebook invocation
 	$Messages = {};
@@ -223,6 +226,14 @@ If[
 			$outputSetToTraditionalForm,
 			TraditionalForm,
 			If[$outputSetToTeXForm, TeXForm, #&]
+		];
+	$truePageWidth :=
+		Replace[
+			Lookup[Options[$Output], PageWidth],
+			Except[
+				pageWidth_ /; ((IntegerQ[pageWidth]) && (pageWidth > 0))
+			] ->
+				$defaultPageWidth
 		];
 
 	(* hard-coded base64 rasterization of $Failed *)
