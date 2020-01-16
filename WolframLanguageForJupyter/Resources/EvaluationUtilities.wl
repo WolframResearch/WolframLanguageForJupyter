@@ -67,6 +67,36 @@ If[
 	SetAttributes[uninteract, HoldAll];
 
 (************************************
+	version of Print that
+		sends output to Jupyter
+*************************************)
+
+	(* redirect Print calls into a message to Jupyter, in order to print in Jupyter *)
+	(* TODO: review other methods: through EvaluationData or WSTP so we don't redefine Print *)
+	(* TODO: remove this and just permanently set $Output to {..., loopState["WolframLanguageForJupyter-stdout"], ...} *)
+	Unprotect[Print];
+	Print[ourArgs___, opts:OptionsPattern[]] :=
+		Block[
+			{
+				$inPrint = True,
+				$Output
+			},
+			If[
+				loopState["printFunction"] =!= False,
+				$Output = {OpenWrite[FormatType -> OutputForm]};
+				If[
+					!FailureQ[First[$Output]],
+					Print[ourArgs, opts];
+					loopState["printFunction"][
+						Import[$Output[[1,1]], "String"]
+					];
+					Close[First[$Output]];
+				];
+			];
+		] /; !TrueQ[$inPrint];
+	Protect[Print];
+
+(************************************
 	version of Write that
 		sends output to Jupyter
 *************************************)
@@ -135,35 +165,6 @@ If[
 			];
 		] /; !TrueQ[$inWriteString];
 	Protect[WriteString];
-
-(************************************
-	version of Print that
-		sends output to Jupyter
-*************************************)
-
-	(* redirect Print calls into a message to Jupyter, in order to print in Jupyter *)
-	(* TODO: review other methods: through EvaluationData or WSTP so we don't redefine Print *)
-	Unprotect[Print];
-	Print[ourArgs___, opts:OptionsPattern[]] :=
-		Block[
-			{
-				$inPrint = True,
-				$Output
-			},
-			If[
-				loopState["printFunction"] =!= False,
-				$Output = {OpenWrite[FormatType -> OutputForm]};
-				If[
-					!FailureQ[First[$Output]],
-					Print[ourArgs, opts];
-					loopState["printFunction"][
-						Import[$Output[[1,1]], "String"]
-					];
-					Close[First[$Output]];
-				];
-			];
-		] /; !TrueQ[$inPrint];
-	Protect[Print];
 
 (************************************
 	versions of Quit and Exit that
