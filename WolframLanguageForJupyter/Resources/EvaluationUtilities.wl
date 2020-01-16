@@ -72,7 +72,7 @@ If[
 *************************************)
 
 	(* redirect Write["stdout", ourArgs___] calls to Write[loopState["WolframLanguageForJupyter-stdout"], ourArgs___],
-		in order to print in the Jupyter *)
+		in order to print in Jupyter *)
 	Unprotect[Write];
 	Write["stdout", ourArgs___, opts:OptionsPattern[]] :=
 		Block[
@@ -87,7 +87,7 @@ If[
 	Protect[Write];
 	(* redirect Write[{before___, "stdout", after___}, ourArgs___] calls to
 		Write[{before___, "WolframLanguageForJupyter-stdout", after___}, ourArgs___],
-		in order to print in the Jupyter *)
+		in order to print in Jupyter *)
 	Unprotect[Write];
 	Write[{before___, "stdout", after___}, ourArgs___, opts:OptionsPattern[]] :=
 		Block[
@@ -107,7 +107,7 @@ If[
 *************************************)
 
 	(* redirect WriteString["stdout", ourArgs___] calls to WriteString[loopState["WolframLanguageForJupyter-stdout"], ourArgs___],
-		in order to print in the Jupyter *)
+		in order to print in Jupyter *)
 	Unprotect[WriteString];
 	WriteString["stdout", ourArgs___, opts:OptionsPattern[]] :=
 		Block[
@@ -122,7 +122,7 @@ If[
 	Protect[WriteString];
 	(* redirect WriteString[{before___, "stdout", after___}, ourArgs___] calls to
 		WriteString[{before___, "WolframLanguageForJupyter-stdout", after___}, ourArgs___],
-		in order to print in the Jupyter *)
+		in order to print in Jupyter *)
 	Unprotect[WriteString];
 	WriteString[{before___, "stdout", after___}, ourArgs___, opts:OptionsPattern[]] :=
 		Block[
