@@ -20,20 +20,18 @@ There are **two** ways to make the Wolfram Language available in Jupyter:
 ## Method 1: Using `wolframscript`
 
 On macOS/Unix: Clone the repository
-    git clone https://github.com/WolframResearch/WolframLanguageForJupyter.git
-    Run the following command in your shell to make the Wolfram Language engine available to Jupyter:
-  
-    	./configure-jupyter.wls add
 
-On Windows: 
-	Follow the fist two steps [here](https://help.github.com/en/github/creating-cloning-and-archiving-repositories/cloning-a-repository), and on the the third step select `Download Zip`, and unzip the file using a tool for Windows.
-	Open PowerShell in the directory of the unzipped folder
-	
-	Run the following command in your shell to make the Wolfram Language engine available to Jupyter:
-  
-    		.\configure-jupyter.wls add
+	git clone https://github.com/WolframResearch/WolframLanguageForJupyter.git
 
+Run the following command in your shell to make the Wolfram Language engine available to Jupyter:
 
+	./configure-jupyter.wls add
+
+On Windows: Follow the fist two steps [here](https://help.github.com/en/github/creating-cloning-and-archiving-repositories/cloning-a-repository), and on the the third step select `Download Zip`, and unzip the file using a tool for Windows. Open PowerShell in the directory of the unzipped folder
+
+Run the following command in your shell to make the Wolfram Language engine available to Jupyter:
+
+	.\configure-jupyter.wls add
 
 **Notes:** 
 
@@ -43,7 +41,7 @@ On Windows:
 
 For more configuration options run:
 
-    ./configure-jupyter.wls help
+	./configure-jupyter.wls help
 
 ## Method 2: Using Wolfram Language
 
@@ -61,15 +59,15 @@ To load the paclet, run:
 
 To add the Wolfram Language to Jupyter, run:
 
-    ConfigureJupyter["Add"]
+	ConfigureJupyter["Add"]
 
 To specify a specific Jupyter binary, run:
 
-    ConfigureJupyter["Add", "JupyterInstallation" -> "..."]
+	ConfigureJupyter["Add", "JupyterInstallation" -> "..."]
 
 To specify a specific Wolfram Engine binary, run:
 
-    ConfigureJupyter["Add", "WolframEngineBinary" -> "..." ]
+	ConfigureJupyter["Add", "WolframEngineBinary" -> "..." ]
 
 Please note, however, that the value for the `"WolframEngineBinary"` option should not be a `wolframscript` path.
 
@@ -77,15 +75,15 @@ Please note, however, that the value for the `"WolframEngineBinary"` option shou
 
 The following command should now list the Wolfram Engine:
 
-    jupyter kernelspec list
+	jupyter kernelspec list
 
 The output should include a line like this:
 
-    wolframlanguage12    C:\ProgramData\jupyter\kernels\wolframlanguage12
+	wolframlanguage12    C:\ProgramData\jupyter\kernels\wolframlanguage12
 
 ## To test your installation in a notebook, run the following command: 
 
-    jupyter notebook
+	jupyter notebook
 
 Then select Wolfram Language from the drop down menu:
 
@@ -104,8 +102,7 @@ Any messages that occur during evaluation are displayed:
 ![in-out-3](images/in-out-03.png)
 
 ## To test your installation in the terminal, run the following command:
-    jupyter-console --kernel=wolframlanguage12
-
+	jupyter-console --kernel=wolframlanguage12
 
 # Building the WolframLanguageForJupyter paclet
 
@@ -121,13 +118,13 @@ This creates the `WolframLanguageForJupyter-x.y.z.paclet` file (use the `PacletI
 
 Run the following command to remove the Wolfram Language engine from Jupyter:
 
-    ./configure-jupyter.wls remove
+	./configure-jupyter.wls remove
 
 ## Method 2: Using Wolfram Language
 
 Run the following command:
 
-    ConfigureJupyter["Remove"]
+	ConfigureJupyter["Remove"]
 
 # Links
 
