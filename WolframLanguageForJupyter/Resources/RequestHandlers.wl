@@ -283,7 +283,7 @@ If[
 					toOut = toOutImageHTML
 				];
 				(* prepare the content for a reply message frame to be sent on the IO Publish socket *)
-				ioPubReplyContent = ExportString[
+				ioPubReplyContent = ExportByteArray[
 					Association[
 						(* the first output index *)
 						"execution_count" -> First[totalResult["EvaluationResultOutputLineIndices"]],
@@ -292,52 +292,58 @@ If[
 							{
 								(* generate HTML for the results and messages *)
 								"text/html" ->
-									(* output the results in a grid *)
 									If[
-										Length[totalResult["EvaluationResult"]] > 1,
-										StringJoin[
-											(* add grid style *)
-											"<style>
-												.grid-container {
-													display: inline-grid;
-													grid-template-columns: auto;
-												}
-											</style>
+										loopState["isCompleteRequestSent"],
+										(* if an is_complete_request has been sent, assume jupyter-console is running the kernel,
+											and do not generate HTML *)
+										"",
+										(* otherwise, output the results in a grid *)
+										If[
+											Length[totalResult["EvaluationResult"]] > 1,
+											StringJoin[
+												(* add grid style *)
+												"<style>
+													.grid-container {
+														display: inline-grid;
+														grid-template-columns: auto;
+													}
+												</style>
 
-											<div>",
-											(* display error message *)
-											errorMessage,
-											(* start the grid *)
-											"<div class=\"grid-container\">",
-											(* display the output lines *)
-											Table[
-												{
-													(* start the grid item *)
-													"<div class=\"grid-item\">",
-													(* show the output line *)
-													toOut[totalResult["EvaluationResult"][[outIndex]]],
-													(* end the grid item *)
-													"</div>"
-												},
-												{outIndex, 1, Length[totalResult["EvaluationResult"]]}
+												<div>",
+												(* display error message *)
+												errorMessage,
+												(* start the grid *)
+												"<div class=\"grid-container\">",
+												(* display the output lines *)
+												Table[
+													{
+														(* start the grid item *)
+														"<div class=\"grid-item\">",
+														(* show the output line *)
+														toOut[totalResult["EvaluationResult"][[outIndex]]],
+														(* end the grid item *)
+														"</div>"
+													},
+													{outIndex, 1, Length[totalResult["EvaluationResult"]]}
+												],
+												(* end the element *)
+												"</div></div>"
 											],
-											(* end the element *)
-											"</div></div>"
-										],
-										StringJoin[
-											(* start the element *)
-											"<div>",
-											(* display error message *)
-											errorMessage,
-											(* if there are messages, but no results, do not display a result *)
-											If[
-												Length[totalResult["EvaluationResult"]] == 0,
-												"",
-												(* otherwise, display a result *)
-												toOut[First[totalResult["EvaluationResult"]]]
-											],
-											(* end the element *)
-											"</div>"
+											StringJoin[
+												(* start the element *)
+												"<div>",
+												(* display error message *)
+												errorMessage,
+												(* if there are messages, but no results, do not display a result *)
+												If[
+													Length[totalResult["EvaluationResult"]] == 0,
+													"",
+													(* otherwise, display a result *)
+													toOut[First[totalResult["EvaluationResult"]]]
+												],
+												(* end the element *)
+												"</div>"
+											]
 										]
 									],
 								(* provide, as a backup, plain text for the results *)
