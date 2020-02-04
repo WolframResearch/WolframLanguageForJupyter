@@ -71,8 +71,9 @@ If[
 		sends output to Jupyter
 *************************************)
 
-	(* redirect Print calls into a message to Jupyter, in order to print in the Jupyter notebook *)
+	(* redirect Print calls into a message to Jupyter, in order to print in Jupyter *)
 	(* TODO: review other methods: through EvaluationData or WSTP so we don't redefine Print *)
+	(* TODO: remove this and just permanently set $Output to {..., loopState["WolframLanguageForJupyter-stdout"], ...} *)
 	Unprotect[Print];
 	Print[ourArgs___, opts:OptionsPattern[]] :=
 		Block[
@@ -94,6 +95,76 @@ If[
 			];
 		] /; !TrueQ[$inPrint];
 	Protect[Print];
+
+(************************************
+	version of Write that
+		sends output to Jupyter
+*************************************)
+
+	(* redirect Write["stdout", ourArgs___] calls to Write[loopState["WolframLanguageForJupyter-stdout"], ourArgs___],
+		in order to print in Jupyter *)
+	Unprotect[Write];
+	Write["stdout", ourArgs___, opts:OptionsPattern[]] :=
+		Block[
+			{
+				$inWrite = True
+			},
+			If[
+				loopState["WolframLanguageForJupyter-stdout"] =!= False,
+				Write[loopState["WolframLanguageForJupyter-stdout"], ourArgs]
+			];
+		] /; !TrueQ[$inWrite];
+	Protect[Write];
+	(* redirect Write[{before___, "stdout", after___}, ourArgs___] calls to
+		Write[{before___, "WolframLanguageForJupyter-stdout", after___}, ourArgs___],
+		in order to print in Jupyter *)
+	Unprotect[Write];
+	Write[{before___, "stdout", after___}, ourArgs___, opts:OptionsPattern[]] :=
+		Block[
+			{
+				$inWrite = True
+			},
+			If[
+				loopState["WolframLanguageForJupyter-stdout"] =!= False,
+				Write[{before, loopState["WolframLanguageForJupyter-stdout"], after}, ourArgs]
+			];
+		] /; !TrueQ[$inWrite];
+	Protect[Write];
+
+(************************************
+	version of WriteString that
+		sends output to Jupyter
+*************************************)
+
+	(* redirect WriteString["stdout", ourArgs___] calls to WriteString[loopState["WolframLanguageForJupyter-stdout"], ourArgs___],
+		in order to print in Jupyter *)
+	Unprotect[WriteString];
+	WriteString["stdout", ourArgs___, opts:OptionsPattern[]] :=
+		Block[
+			{
+				$inWriteString = True
+			},
+			If[
+				loopState["WolframLanguageForJupyter-stdout"] =!= False,
+				WriteString[loopState["WolframLanguageForJupyter-stdout"], ourArgs]
+			];
+		] /; !TrueQ[$inWriteString];
+	Protect[WriteString];
+	(* redirect WriteString[{before___, "stdout", after___}, ourArgs___] calls to
+		WriteString[{before___, "WolframLanguageForJupyter-stdout", after___}, ourArgs___],
+		in order to print in Jupyter *)
+	Unprotect[WriteString];
+	WriteString[{before___, "stdout", after___}, ourArgs___, opts:OptionsPattern[]] :=
+		Block[
+			{
+				$inWriteString = True
+			},
+			If[
+				loopState["WolframLanguageForJupyter-stdout"] =!= False,
+				WriteString[{before, loopState["WolframLanguageForJupyter-stdout"], after}, ourArgs]
+			];
+		] /; !TrueQ[$inWriteString];
+	Protect[WriteString];
 
 (************************************
 	versions of Quit and Exit that

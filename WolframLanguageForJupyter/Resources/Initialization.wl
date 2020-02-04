@@ -195,6 +195,9 @@ If[
 			(* flag for if an is_complete_request has ever been sent to the kernel *)
 			"isCompleteRequestSent" -> False,
 
+			(* OutputStream for Jupyter's stdout *)
+			"WolframLanguageForJupyter-stdout" -> False,
+
 			(* local to an iteration *)
 			(* a received frame as an Association *)
 			"frameAssoc" -> Null,
@@ -262,6 +265,44 @@ If[
 	controlString = StringJoin[baseString, connectionAssoc["control_port"]];
 	inputString = StringJoin[baseString, connectionAssoc["stdin_port"]];
 	shellString = StringJoin[baseString, connectionAssoc["shell_port"]];
+
+	Block[
+		{
+			(* for storing the result of defining a new OutputStream method *)
+			customOutputStreamMethod
+		},
+
+		(* define an OutputStream method that will allow writing to Jupyter's stdout *)
+		customOutputStreamMethod =
+			DefineOutputStreamMethod[
+				"for-WolframLanguageForJupyter-stdout",
+				{
+					"ConstructorFunction" -> Function[{name, isAppend, caller, opts}, {True, {}}],
+					"WriteFunction" -> 
+						Function[
+							{state, bytes},
+							If[
+								loopState["frameAssoc"] =!= Null,
+								redirectPrint[loopState["frameAssoc"], FromCharacterCode[bytes]];
+							];
+							{Length[bytes], {}}
+						]
+				}
+			];
+
+		(* if defining a new OutputStream method did not fail,
+			open an OutputStream using the new method, and store it in loopState *)
+		If[
+			!FailureQ[customOutputStreamMethod],
+			loopState["WolframLanguageForJupyter-stdout"] =
+				OpenWrite["WolframLanguageForJupyter-stdout", Method -> "for-WolframLanguageForJupyter-stdout"];
+			(* -- also, if opening the OutputStream failed, reset loopState["WolframLanguageForJupyter-stdout"] back to False *)
+			If[
+				FailureQ[loopState["WolframLanguageForJupyter-stdout"]],
+				loopState["WolframLanguageForJupyter-stdout"] = False;
+			];
+		];
+	];
 
 (************************************
 	open all the non-heartbeat
