@@ -5,12 +5,14 @@ Description:
 	Initialization for
 		WolframLanguageForJupyter
 Symbols defined:
+	$defaultPageWidth,
 	loopState,
 	applyHook,
 	$canUseFrontEnd,
 	$outputSetToTraditionalForm,
 	$outputSetToTeXForm,
 	$trueFormatType,
+	$truePageWidth,
 	connectionAssoc,
 	bannerWarning,
 	keyString,
@@ -57,7 +59,8 @@ If[
 *************************************)
 
 	(* make Short[] work *)
-	SetOptions[$Output, PageWidth -> 89];
+	$defaultPageWidth = 89;
+	SetOptions[$Output, PageWidth -> $defaultPageWidth];
 
 (* 	do not output messages to the jupyter notebook invocation
 	$Messages = {};
@@ -192,6 +195,9 @@ If[
 			(* flag for if an is_complete_request has ever been sent to the kernel *)
 			"isCompleteRequestSent" -> False,
 
+			(* OutputStream for Jupyter's stdout *)
+			"WolframLanguageForJupyter-stdout" -> False,
+
 			(* local to an iteration *)
 			(* a received frame as an Association *)
 			"frameAssoc" -> Null,
@@ -224,6 +230,14 @@ If[
 			TraditionalForm,
 			If[$outputSetToTeXForm, TeXForm, #&]
 		];
+	$truePageWidth :=
+		Replace[
+			Lookup[Options[$Output], PageWidth],
+			Except[
+				pageWidth_ /; ((IntegerQ[pageWidth]) && (pageWidth > 0))
+			] ->
+				$defaultPageWidth
+		];
 
 	(* hard-coded base64 rasterization of $Failed *)
 	failedInBase64 = "iVBORw0KGgoAAAANSUhEUgAAADcAAAARCAIAAAD2TKM6AAAAhXpUWHRSYXcgcHJvZmlsZSB0eXBlIGV4aWYAAHjaVYvBDcMwDAP/mqIjyLJM2uMYiQNkg45fuu0n9yApgbT1vi97felp2dgxABc5csRU6P6juNciDXn+X9MfZGWgoRhTluEkhnJXkqKFN+LCAahYcIbnIV8gNQN3o86928QyPusLVffpbh/5eCey76LuBgAAAAlwSFlzAAALEwAACxMBAJqcGAAAADx0RVh0U29mdHdhcmUAQ3JlYXRlZCB3aXRoIHRoZSBXb2xmcmFtIExhbmd1YWdlIDogd3d3LndvbGZyYW0uY29tXKKmhQAAACF0RVh0Q3JlYXRpb24gVGltZQAyMDE5OjA3OjAyIDAzOjExOjExSFD8JQAAA8xJREFUSInVlk9IKl8Ux68ajjThLynMwCKLICSDjBbRxpVSFhFkCtFfBMMKAhcu3GXhQopaJBEFISjhsn9YUGE6zSJqkRURFVpKLQqNcYgZHectpszfez9exoP33u+zmnPm3HO/c865w2XRNA3+eth/WkBOfKjEMAzH8T8o5Sd8qJybm1tcXPz1jCaTyeVyMc8URXV3d2s0Go1GEwgEvppqZGQERdEPldfX1yiKIghydnaWCerp6WFn0dbW9mlekiTdbrfX62VMNpvd398/MDAQCATu7u6+qnJ9fT0SiQAA8gAAJycnzc3NnZ2dfD5foVA4nc7W1lYAQDqd1uv1drudWZOXl/dpXi6XG4lEOBwOY7JYLLVaDQDIz8//qsRs2AAAt9vd2NjodrsXFhYuLy9VKlXmNQRB/7wDwzAAIBaLmc1miUTC5/MHBwfPz8+ZSJvNJpVKpVKpTCazWq2fbkySpMViEYvFAoFAp9M9Pz8z/v39/bq6Oj6fr9FoMueEDQBQKpUoihqNxtvb2+Li4kwlAADxePz6nXQ6DQC4uroKBoPz8/MoimIYZjabmciuri6Hw+FwOMRi8ePj46cqLRaLx+NZXV1dW1u7v78fGxsDAESj0fb29qamJp/PV19f//Ly8hZN0zRN016vVy6Xs9nsoaGh19dXxqnT6QAAzFByOJxYLEa/Q5Lk6enp9PQ0BEE4jtNZ9Pb2Go1G+t9UVla6XK6MmUwmIQja3t5mzI2NjYKCApqm7Xa7RCJJpVKMv6yszOPx0DT9dnpUKtXx8fHW1tbm5ubk5GTmi0dHRymKoigqlUoVFhYCAAiCMBqNQqFweHj48PCQIIh4PP5p5b4jHA4TBNHS0sLlcrlcbkdHB0EQOI7f3NzU1tZmN/Oj4wcHBxiGMVpVKlVm1P6TqakpBEEuLi4QBJmdnc1RFovFoigqY4pEIhaL5ff7SZIkSTKVSpEkCcOwQCAIBoM/LmcDACYmJqqrq/v6+rRarcfjYRr9kzJUVVWJRKJEImGz2XJU2dDQsLu7m06nHx4eAAAwDKvVapPJxExwNBpFEAQAoFAoQqHQ0tISSZIrKytM8JvKnZ0dxoVhmM/n02q1mQL8uJ/BYPD7/UKhsKKioqioCIKgXFTq9fq9vT0YhuVyOVPU5eXlkpKS8vLy0tJSqVTK/POVSuX4+LjBYODxeE6ns6am5m19ZqKtVuvMzAydAwRBhEIhiqJyCc5AUVQoFEomk9lOHMfD4fB3qRKJxNPTU7aHRb/fiY6Ojng8nkwmy7GJv5MPlX8z/4+b2zdkknhkRbjZsAAAAABJRU5ErkJggg==";
@@ -251,6 +265,44 @@ If[
 	controlString = StringJoin[baseString, connectionAssoc["control_port"]];
 	inputString = StringJoin[baseString, connectionAssoc["stdin_port"]];
 	shellString = StringJoin[baseString, connectionAssoc["shell_port"]];
+
+	Block[
+		{
+			(* for storing the result of defining a new OutputStream method *)
+			customOutputStreamMethod
+		},
+
+		(* define an OutputStream method that will allow writing to Jupyter's stdout *)
+		customOutputStreamMethod =
+			DefineOutputStreamMethod[
+				"for-WolframLanguageForJupyter-stdout",
+				{
+					"ConstructorFunction" -> Function[{name, isAppend, caller, opts}, {True, {}}],
+					"WriteFunction" -> 
+						Function[
+							{state, bytes},
+							If[
+								loopState["frameAssoc"] =!= Null,
+								redirectPrint[loopState["frameAssoc"], FromCharacterCode[bytes]];
+							];
+							{Length[bytes], {}}
+						]
+				}
+			];
+
+		(* if defining a new OutputStream method did not fail,
+			open an OutputStream using the new method, and store it in loopState *)
+		If[
+			!FailureQ[customOutputStreamMethod],
+			loopState["WolframLanguageForJupyter-stdout"] =
+				OpenWrite["WolframLanguageForJupyter-stdout", Method -> "for-WolframLanguageForJupyter-stdout"];
+			(* -- also, if opening the OutputStream failed, reset loopState["WolframLanguageForJupyter-stdout"] back to False *)
+			If[
+				FailureQ[loopState["WolframLanguageForJupyter-stdout"]],
+				loopState["WolframLanguageForJupyter-stdout"] = False;
+			];
+		];
+	];
 
 (************************************
 	open all the non-heartbeat
