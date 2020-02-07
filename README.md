@@ -84,7 +84,7 @@ The output should include a line like this:
 
     wolframlanguage12    C:\ProgramData\jupyter\kernels\wolframlanguage12
 
-To test your installation, run the following command: 
+## To test your installation in a notebook, run the following command: 
 
     jupyter notebook
 
@@ -103,6 +103,10 @@ Outputs are either strings, for simple textual results, or images, for graphics 
 Any messages that occur during evaluation are displayed:
 
 ![in-out-3](images/in-out-03.png)
+
+## To test your installation in the terminal, run the following command:
+    jupyter-console --kernel=wolframlanguage12
+
 
 # Building the WolframLanguageForJupyter paclet
 
