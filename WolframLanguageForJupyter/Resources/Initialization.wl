@@ -234,7 +234,10 @@ If[
 		Replace[
 			Lookup[Options[$Output], PageWidth],
 			Except[
-				pageWidth_ /; ((IntegerQ[pageWidth]) && (pageWidth > 0))
+				Alternatives[
+					Infinity,
+					pageWidth_ /; ((IntegerQ[pageWidth]) && (pageWidth > 0))
+				]
 			] ->
 				$defaultPageWidth
 		];
