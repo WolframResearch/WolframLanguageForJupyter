@@ -384,7 +384,7 @@ If[
 					"alt=\"Output\" src=\"data:image/png;base64,",
 					imageInBase64,
 					(* end the element *)
-					"\">"
+					"\" style=\"filter: invert(100%)\">"
 				]
 			]
 		];
