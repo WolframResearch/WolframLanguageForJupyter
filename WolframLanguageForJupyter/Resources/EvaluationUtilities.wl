@@ -97,6 +97,21 @@ If[
 	Protect[Print];
 
 (************************************
+	version of Echo that
+		sends output to Jupyter
+*************************************)
+
+	(* redirect Echo calls into a message to Jupyter, in order to print/echo in Jupyter *)
+	Echo[""];
+	Unprotect[Echo];
+	DownValues[Echo] =
+		Prepend[
+			DownValues[Echo],
+			HoldPattern[Echo[ourArgs___, opts:OptionsPattern[]]] :> Block[{$inEcho = True, $Notebooks = False}, Echo[ourArgs, opts]] /; !TrueQ[$inEcho]
+		];
+	Protect[Echo];
+
+(************************************
 	version of Write that
 		sends output to Jupyter
 *************************************)
