@@ -63,11 +63,11 @@ If[
 					(* see https://jupyter-client.readthedocs.io/en/stable/messaging.html *)
 					StringCases[
 						frameStr,
-						ident1___ ~~ "<IDS|MSG>" ~~ ___ ~~ 
-							"{" ~~ json2___ ~~ "}" ~~
-								"{" ~~ json3___ ~~ "}" ~~
-									"{" ~~ json4___ ~~ "}" ~~
-										"{" ~~ json5___ ~~ "}" ~~
+						Shortest[ident1___] ~~ "<IDS|MSG>" ~~ Shortest[___] ~~ 
+							"{" ~~ Shortest[json2___] ~~ "}" ~~
+								"{" ~~ Shortest[json3___] ~~ "}" ~~
+									"{" ~~ Shortest[json4___] ~~ "}" ~~
+										"{" ~~ Shortest[json5___] ~~ "}" ~~
 											EndOfString :> 
 							Prepend[
 								(* add back in the brackets *)
