@@ -50,6 +50,7 @@ If[
 
 	(* convert an expression into a textual form,
 		using as much of the options already set for $Output as possible for ToString *)
+	(* NOTE: toOutTextHTML used to call toStringUsingOutput *)
 	toStringUsingOutput[expr_] :=
 		ToString[
 			expr,
@@ -180,26 +181,32 @@ If[
 		results as text and images
 *************************************)
 
-	(* generate the textual form of a result *)
+	(* generate the textual form of a result using a given page width *)
 	(* NOTE: the OutputForm (which ToString uses) of any expressions wrapped with, say, InputForm should
 		be identical to the string result of an InputForm-wrapped expression itself *)
-	toText[result_] :=
+	toText[result_, pageWidth_] :=
 		ToString[
+			(* make sure to apply $trueFormatType to the result if the result is not already headed by TeXForm *)
 			If[
-				Head[result] =!= TeXForm,
-				$trueFormatType[result],
-				result
+				Head[result] === TeXForm,
+				result,
+				$trueFormatType[result]
 			],
-			(* also, use the current PageWidth setting for $Output *)
-			PageWidth -> $truePageWidth
+			(* also, use the given page width *)
+			PageWidth -> pageWidth
 		];
+	(* generate the textual form of a result using the current PageWidth setting for $Output *)
+	toText[result_] := toText[result, $truePageWidth];
 
 	(* generate HTML for the textual form of a result *)
 	toOutTextHTML[result_] := 
 		Module[
-			{isTeX},
-			(* check if this result should be marked as TeX *)
-			isTeX = (Head[result] === TeXForm) || $outputSetToTeXForm;
+			{
+				(* if the result should be marked as TeX *)
+				isTeX
+			},
+			(* check if the result should be marked as TeX *)
+			isTeX = ((Head[result] === TeXForm) || ($outputSetToTeXForm));
 			Return[
 				StringJoin[
 
@@ -222,7 +229,13 @@ If[
 					(* the textual form of the result *)
 					({"&#", ToString[#1], ";"} & /@ 
 						ToCharacterCode[
-							(* toStringUsingOutput[result] *) toText[result],
+							If[
+								isTeX,
+								(* if the result is TeX, do not allow line breaks *)
+								toText[result, Infinity],
+								(* otherwise, just call toText *)
+								toText[result]
+							],
 							"Unicode"
 						]),
 
