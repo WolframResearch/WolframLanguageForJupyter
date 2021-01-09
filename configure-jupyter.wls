@@ -25,6 +25,7 @@ nolink = "configure-jupyter.wls: Communication with provided Wolfram Engine bina
 (* START: Helper symbols  *)
 
 projectHome = If[StringQ[$InputFileName] && $InputFileName != "", DirectoryName[$InputFileName], Directory[]];
+defaultOnDemandLicenseServer = "cloudlm.wolfram.com";
 
 (* establishes link with Wolfram Engine at mathBin and evaluates $Version/$VersionNumber *)
 (* returns string form *)
@@ -32,12 +33,13 @@ getVersionFromKernel[mathBin_String] :=
 	Module[{link, res},
 		link = 
 			LinkLaunch[
-				StringJoin[
-					{
-						"\"",
-						mathBin,
-						"\" -wstp"
-					}
+				StringRiffle[
+					Flatten@{
+						"\"" <> mathBin <> "\"",
+						"-wstp",
+						onDemandLicensingArguments[]
+					},
+					" "
 				]
 			];
 		If[FailureQ[link],
@@ -157,6 +159,30 @@ attemptPathRegeneration[] := If[
 					]
 		];
 	];
+
+(* returns a list of WolframKernel CLI args for on-demand licensing based on the
+	WOLFRAMSCRIPT_ENTITLEMENTID envar; empty list if the variable is absent *)
+onDemandLicensingArguments[] := onDemandLicensingArguments[Association@GetEnvironment[]]
+onDemandLicensingArguments[processEnvironment_Association] := Module[{
+	entitlementID = processEnvironment["WOLFRAMSCRIPT_ENTITLEMENTID"],
+	licenseServer = Lookup[
+		processEnvironment,
+		"WOLFRAMSCRIPT_CLOUDLICENSESERVER",
+		defaultOnDemandLicenseServer
+	]
+},
+	If[
+		(* if the envar is absent or too short *)
+		!StringQ[entitlementID] || StringLength[entitlementID] < 2,
+		(* then return an empty list *)
+		Return[{}]
+	];
+
+	Return@{
+		"-pwfile", "\"!" <> licenseServer <> "\"",
+		"-entitlement", "\"" <> entitlementID <> "\""
+	}
+]
 
 (* find Jupyter installation path *)
 (* returns kernel IDs in Jupyter *)
@@ -310,7 +336,13 @@ configureJupyter[specs_Association, removeQ_?BooleanQ, removeAllQ_?BooleanQ] :=
 			Export[
 				FileNameJoin[{tempDir, "kernel.json"}], 
 				Association[
-					"argv" -> {mathBin, "-script", kernelScript, "{connection_file}", "ScriptInstall" (* , "-noprompt" *)},
+					"argv" -> Flatten@{
+						mathBin,
+
+						"-script", kernelScript,
+						"{connection_file}", "ScriptInstall", (* "-noprompt", *)
+						StringTrim[onDemandLicensingArguments[processEnvironment], "\""]
+					},
 					"display_name" -> displayName,
 					"language" -> "Wolfram Language"
 				]
