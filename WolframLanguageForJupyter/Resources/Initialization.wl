@@ -257,7 +257,7 @@ If[
 	(* warnings to display in kernel information *)
 	bannerWarning = 
 		If[
-			Length[$CommandLine] > 4,
+			MemberQ[$CommandLine, "ScriptInstall"],
 			"\\n\\nNote: This Jupyter kernel was installed through the WolframScript install method. Accordingly, updates to a WolframLanguageForJupyter paclet will not affect this kernel.",
 			""
 		];
