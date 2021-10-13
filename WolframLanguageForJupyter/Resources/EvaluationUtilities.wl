@@ -525,6 +525,11 @@ If[
 				];
 
 				(* evaluate the expression string *)
+				(* regarding Internal`AllowExceptions, we need to generate the results and messages that
+					are expected when a user evaluation is interrupted by behavior such as an uncaught Throw
+					statement, while making sure that the simulated evaluation loop is not interrupted by the
+					same behavior; my hope is that we can achieve this by using Internal`AllowExceptions as
+					essentially a version of CheckAll that does not silence messages such as Throw::nocatch *)
 				result =
 					Internal`AllowExceptions[
 						ToExpression[
