@@ -31,7 +31,7 @@ On Windows: Follow the fist two steps [here](https://help.github.com/en/github/c
 
 Run the following command in your shell to make the Wolfram Language engine available to Jupyter:
 
-	.\configure-jupyter.wls add
+	./configure-jupyter.wls add
 
 **Notes:** 
 
