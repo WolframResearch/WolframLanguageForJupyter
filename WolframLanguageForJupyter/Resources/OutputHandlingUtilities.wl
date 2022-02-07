@@ -324,7 +324,7 @@ If[
 						imageInBase64 = BaseEncode[imageData];
 						,
 						(* if the rasterization did fail, use a hard-coded base64 rasterization of $Failed *)
-						imageInBase64 = failedinBase64;
+						imageInBase64 = failedInBase64;
 					];
 				];
 			];
