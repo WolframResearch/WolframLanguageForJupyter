@@ -99,6 +99,9 @@ If[
 	executeRequestHandler[] :=
 		Module[
 			{
+				(* message formatter function *)
+				messageFormatter,
+
 				(* content of the desired frame to send on the IO Publish socket *)
 				ioPubReplyContent,
 
@@ -142,17 +145,16 @@ If[
 				update Jupyter explicitly with any errors that occur DURING the execution of the input *)
 			If[
 				loopState["redirectMessages"],
-				Internal`$MessageFormatter =
-					(
-						redirectMessages[
-							loopState["frameAssoc"],
-							#1,
-							#2,
-							(* add a newline if loopState["isCompleteRequestSent"] *)
-							loopState["isCompleteRequestSent"]
-						]
-						&
-					);
+				messageFormatter[messageName_, messageText_] :=
+					redirectMessages[
+						loopState["frameAssoc"],
+						messageName,
+						messageText,
+						(* add a newline if loopState["isCompleteRequestSent"] *)
+						loopState["isCompleteRequestSent"]
+					];
+				SetAttributes[messageFormatter, HoldAll];
+				Internal`$MessageFormatter = messageFormatter;
 			];
 
 			(* evaluate the input, and store the total result in totalResult *)
@@ -161,7 +163,8 @@ If[
 			(* restore printFunction to False *)
 			loopState["printFunction"] = False;
 
-			(* unset Internal`$MessageFormatter *)
+			(* unset messageFormatter and Internal`$MessageFormatter *)
+			Unset[messageFormatter];
 			Unset[Internal`$MessageFormatter];
 
 			(* set the appropriate reply type *)

@@ -7,8 +7,6 @@ Description:
 		the Mathematica REPL
 Symbols defined:
 	Print,
-	Throw,
-	Catch,
 	redirectPrint,
 	redirectMessages,
 	simulatedEvaluate
@@ -227,28 +225,6 @@ If[
 	Protect[Exit];
 
 (************************************
-	versions of Throw and
-		Catch that we can
-		more easily intercept
-*************************************)
-
-	Unprotect[Throw];
-	Throw[value_] :=
-		Throw[
-			value,
-			WolframLanguageForJupyter`Private`$ThrowLabel
-		];
-	Protect[Throw];
-
-	Unprotect[Catch];
-	Catch[expr_] :=
-		Catch[
-			expr,
-			WolframLanguageForJupyter`Private`$ThrowLabel
-		];
-	Protect[Catch];
-
-(************************************
 	redirection utilities
 *************************************)
 
@@ -288,7 +264,7 @@ If[
 				messageTextString
 			},
 			(* generate string forms of the arguments *)
-			messageNameString = ToString[messageName];
+			messageNameString = ToString[HoldForm[messageName]];
 			messageTextString = ToString[messageText];
 			(* send a frame *)
 			sendFrame[
@@ -319,7 +295,7 @@ If[
 													(* use only the message text here if dropMessageName is True *)
 													messageTextString,
 													(* otherwise, combine the message name and message text *)
-													ToString[System`ColonForm[messageName, messageText]]
+													ToString[System`ColonForm[HoldForm[messageName], messageText]]
 												],
 												(* if addNewline, add a newline *)
 												If[addNewline, "\n", ""],
@@ -337,6 +313,7 @@ If[
 			(* ... and return an empty string to the Wolfram Language message system *)
 			Return[""];
 		];
+	SetAttributes[redirectMessages, HoldAll];
 
 (************************************
 	utilities for splitting
@@ -488,9 +465,6 @@ If[
 				(* the result of evaluation *)
 				evaluationResult,
 
-				(* for storing intermediate results *)
-				intermediate,
-
 				(* for storing final results *)
 				result,
 
@@ -550,34 +524,20 @@ If[
 					Protect[InString];
 				];
 
-				(* catch any Throws that were not handled by the input itself *)
-				intermediate = 
-					Catch[
-						(* evaluate the expression string *)
+				(* evaluate the expression string *)
+				(* regarding Internal`AllowExceptions, we need to generate the results and messages that
+					are expected when a user evaluation is interrupted by behavior such as an uncaught Throw
+					statement, while making sure that the simulated evaluation loop is not interrupted by the
+					same behavior; my hope is that we can achieve this by using Internal`AllowExceptions as
+					essentially a version of CheckAll that does not silence messages such as Throw::nocatch *)
+				result =
+					Internal`AllowExceptions[
 						ToExpression[
 							exprStr,
 							InputForm,
 							uninteract
-						],
-						_,
-						WolframLanguageForJupyter`Private`$ThrowNoCatch[#1, #2] &
+						]
 					];
-
-				If[
-					Head[intermediate] =!= WolframLanguageForJupyter`Private`$ThrowNoCatch,
-					(* if we did not catch anything, set result to intermediate *)
-					result = intermediate;,
-					(* if we did catch something, obtain the correct held form of the Throw to return, and message *)
-					If[intermediate[[2]] === WolframLanguageForJupyter`Private`$ThrowLabel,
-						result = Replace[Hold[Throw[placeHolder]], {placeHolder -> intermediate[[1]]}, {2}];,
-						result = Replace[Hold[Throw[placeHolder1, placeHolder2]], {placeHolder1 -> intermediate[[1]], placeHolder2 -> intermediate[[2]]}, {2}];
-					];
-					(* message *)
-					Message[
-						Throw::nocatch,
-						StringTrim[ToString[result, OutputForm], "Hold[" | "]"]
-					];
-				];
 
 				If[
 					!parseTracker["SyntaxError"],

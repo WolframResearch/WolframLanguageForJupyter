@@ -6,7 +6,7 @@
 
 Paclet[
     Name -> "WolframLanguageForJupyter",
-    Version -> "0.9.2",
+    Version -> "0.9.3",
     MathematicaVersion -> "11.2+",
     Extensions -> {
         {"Kernel", Context -> {"WolframLanguageForJupyter`"}},
