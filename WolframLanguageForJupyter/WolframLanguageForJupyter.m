@@ -31,6 +31,7 @@ Begin["`Private`"];
 (* START: Helper symbols  *)
 
 projectHome = DirectoryName[$InputFileName];
+defaultOnDemandLicenseServer = "cloudlm.wolfram.com";
 
 (* establishes link with Wolfram Engine at mathBin and evaluates $Version/$VersionNumber *)
 (* returns string form *)
@@ -38,12 +39,13 @@ getVersionFromKernel[mathBin_String] :=
 	Module[{link, res},
 		link = 
 			LinkLaunch[
-				StringJoin[
-					{
-						"\"",
-						mathBin,
-						"\" -wstp"
-					}
+				StringRiffle[
+					Flatten@{
+						"\"" <> mathBin <> "\"",
+						"-wstp",
+						onDemandLicensingArguments[]
+					},
+					" "
 				]
 			];
 		If[FailureQ[link],
@@ -136,6 +138,29 @@ splitPath :=
 		],
 	pathSeperator];
 
+(* returns a list of WolframKernel CLI args for on-demand licensing based on the
+	WOLFRAMSCRIPT_ENTITLEMENTID envar; empty list if the variable is absent *)
+onDemandLicensingArguments[] := onDemandLicensingArguments[Association@GetEnvironment[]]
+onDemandLicensingArguments[processEnvironment_Association] := Module[{
+	entitlementID = processEnvironment["WOLFRAMSCRIPT_ENTITLEMENTID"],
+	licenseServer = Lookup[
+		processEnvironment,
+		"WOLFRAMSCRIPT_CLOUDLICENSESERVER",
+		defaultOnDemandLicenseServer
+	]
+},
+	If[
+		(* if the envar is absent or too short *)
+		!StringQ[entitlementID] || StringLength[entitlementID] < 2,
+		(* then return an empty list *)
+		Return[{}]
+	];
+
+	Return@{
+		"-pwfile", "\"!" <> licenseServer <> "\"",
+		"-entitlement", "\"" <> entitlementID <> "\""
+	}
+]
 
 (* find Jupyter installation path *)
 (* returns above *)
@@ -288,14 +313,16 @@ configureJupyter[specs_Association, removeQ_?BooleanQ, removeAllQ_?BooleanQ] :=
 			Export[
 				FileNameJoin[{tempDir, "kernel.json"}], 
 				Association[
-					"argv" -> {
+					"argv" -> Flatten@{
 						mathBin,
+
 						(* TODO: automatically find the kernel script
 							(only) if the Wolfram Engine being installed is the same as the one used to execute this command *)
 						"-script",
 						FileNameJoin[{projectHome, "Resources", "KernelForWolframLanguageForJupyter.wl"}],
-						"{connection_file}"
-						(* , "-noprompt" *)
+						"{connection_file}",
+						(* "-noprompt", *)
+						StringTrim[onDemandLicensingArguments[processEnvironment], "\""]
 					},
 					"display_name" -> displayName,
 					"language" -> "Wolfram Language"
