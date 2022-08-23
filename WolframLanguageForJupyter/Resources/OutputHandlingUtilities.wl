@@ -209,7 +209,8 @@ If[
 			Return[
 				If[
 					!isTeX,
-					{},
+					(* if not TeX, return $Failed *)
+					$Failed,
 					StringJoin[
 						(* wrap the result with latex symbol *)
 						"$$",

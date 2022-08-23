@@ -366,8 +366,12 @@ If[
 											{outIndex, 1, Length[totalResult["EvaluationResult"]]}
 										]
 									],
-								"text/latex" ->
-									If[
+								Module[
+									(* list of the results in the TeX form *)
+									{
+										results
+									},
+									results = If[
 										loopState["isCompleteRequestSent"],
 										(* if an is_complete_request has been sent, assume jupyter-console is running the kernel,
 											and do not generate HTML *)
@@ -382,14 +386,21 @@ If[
 											(* Otherwise for single result, display the first one *)
 											If[
 												Length[totalResult["EvaluationResult"]] == 0,
-												"",
-												toTeX[First[totalResult["EvaluationResult"]]]
+												{$Failed},
+												{toTeX[First[totalResult["EvaluationResult"]]]}
 											]
 										]
+									];
+									(* check if any of the result is not in the TeXForm, if so, do not display TeX output *)
+									If[
+										MemberQ[results, $Failed],
+										Nothing,
+										"text/latex" -> results
 									]
+								]
 							},
 						(* no metadata *)
-						"metadata" -> {"text/html" -> {}, "text/plain" -> {}}
+						"metadata" -> {"text/html" -> {}, "text/plain" -> {}, "text/latex" -> {}}
 					],
 					"JSON",
 					"Compact" -> True
