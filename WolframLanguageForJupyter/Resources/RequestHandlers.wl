@@ -380,12 +380,10 @@ If[
 												{outIndex, 1, Length[totalResult["EvaluationResult"]]}
 											],
 											(* Otherwise for single result, display the first one *)
-											StringJoin[
-												If[
-													Length[totalResult["EvaluationResult"]] == 0,
-													"",
-													toTeX[First[totalResult["EvaluationResult"]]]
-												]
+											If[
+												Length[totalResult["EvaluationResult"]] == 0,
+												"",
+												toTeX[First[totalResult["EvaluationResult"]]]
 											]
 										]
 									]
