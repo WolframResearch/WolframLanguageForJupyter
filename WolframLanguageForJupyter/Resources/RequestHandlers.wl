@@ -293,6 +293,11 @@ If[
 						(* the data representing the results and messages *)
 						"data" ->
 							{
+								(* "text/plain" -> 
+									StringJoin[
+										toText[totalResult]
+									]
+								, *)
 								(* generate HTML for the results and messages *)
 								"text/html" ->
 									If[
@@ -360,7 +365,9 @@ If[
 											},
 											{outIndex, 1, Length[totalResult["EvaluationResult"]]}
 										]
-									]
+									],
+								"text/latex" ->
+									toTeX[First[totalResult["EvaluationResult"]]]
 							},
 						(* no metadata *)
 						"metadata" -> {"text/html" -> {}, "text/plain" -> {}}
