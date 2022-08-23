@@ -198,6 +198,29 @@ If[
 	(* generate the textual form of a result using the current PageWidth setting for $Output *)
 	toText[result_] := toText[result, $truePageWidth];
 
+	toTeX[result_] := 
+		Module[
+			{
+				(* if the result should be marked as TeX *)
+				isTeX
+			},
+			(* check if the result should be marked as TeX *)
+			isTeX = ((Head[result] === TeXForm) || ($outputSetToTeXForm));
+			Return[
+				If[
+					!isTeX,
+					(* if not TeX, return $Failed *)
+					$Failed,
+					StringJoin[
+						(* wrap the result with latex symbol *)
+						"$$",
+						toText[result, Infinity],
+						"$$"
+					]
+				]
+			];
+		];
+
 	(* generate HTML for the textual form of a result *)
 	toOutTextHTML[result_] := 
 		Module[

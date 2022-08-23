@@ -293,6 +293,11 @@ If[
 						(* the data representing the results and messages *)
 						"data" ->
 							{
+								(* "text/plain" -> 
+									StringJoin[
+										toText[totalResult]
+									]
+								, *)
 								(* generate HTML for the results and messages *)
 								"text/html" ->
 									If[
@@ -360,10 +365,42 @@ If[
 											},
 											{outIndex, 1, Length[totalResult["EvaluationResult"]]}
 										]
+									],
+								Module[
+									(* list of the results in the TeX form *)
+									{
+										results
+									},
+									results = If[
+										loopState["isCompleteRequestSent"],
+										(* if an is_complete_request has been sent, assume jupyter-console is running the kernel,
+											and do not generate HTML *)
+										"",
+										If[
+											Length[totalResult["EvaluationResult"]] > 1,
+											(* If there are multiple results, display it line by line *)
+											Table[
+												toTeX[totalResult["EvaluationResult"][[outIndex]]],
+												{outIndex, 1, Length[totalResult["EvaluationResult"]]}
+											],
+											(* Otherwise for single result, display the first one *)
+											If[
+												Length[totalResult["EvaluationResult"]] == 0,
+												{$Failed},
+												{toTeX[First[totalResult["EvaluationResult"]]]}
+											]
+										]
+									];
+									(* check if any of the result is not in the TeXForm, if so, do not display TeX output *)
+									If[
+										MemberQ[results, $Failed],
+										Nothing,
+										"text/latex" -> results
 									]
+								]
 							},
 						(* no metadata *)
-						"metadata" -> {"text/html" -> {}, "text/plain" -> {}}
+						"metadata" -> {"text/html" -> {}, "text/plain" -> {}, "text/latex" -> {}}
 					],
 					"JSON",
 					"Compact" -> True
