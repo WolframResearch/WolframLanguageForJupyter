@@ -367,7 +367,28 @@ If[
 										]
 									],
 								"text/latex" ->
-									toTeX[First[totalResult["EvaluationResult"]]]
+									(* toTeX[First[totalResult["EvaluationResult"]]] *)
+									If[
+										loopState["isCompleteRequestSent"],
+										(* if an is_complete_request has been sent, assume jupyter-console is running the kernel,
+											and do not generate HTML *)
+										"",
+										If[
+											Length[totalResult["EvaluationResult"]] > 1,
+											Table[
+													toTeX[totalResult["EvaluationResult"][[outIndex]]]
+												,
+												{outIndex, 1, Length[totalResult["EvaluationResult"]]}
+											],
+											StringJoin[
+												If[
+													Length[totalResult["EvaluationResult"]] == 0,
+													"",
+													toTeX[First[totalResult["EvaluationResult"]]]
+												]
+											]
+										]
+									]
 							},
 						(* no metadata *)
 						"metadata" -> {"text/html" -> {}, "text/plain" -> {}}
