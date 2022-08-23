@@ -211,13 +211,9 @@ If[
 					!isTeX,
 					{},
 					StringJoin[
-						(* mark the text as TeX, if is TeX *)
+						(* wrap the result with latex symbol *)
 						"$$",
-
-						(* the textual form of the result *)
 						toText[result, Infinity],
-
-						(* mark the text as TeX, if is TeX *)
 						"$$"
 					]
 				]

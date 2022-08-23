@@ -367,7 +367,6 @@ If[
 										]
 									],
 								"text/latex" ->
-									(* toTeX[First[totalResult["EvaluationResult"]]] *)
 									If[
 										loopState["isCompleteRequestSent"],
 										(* if an is_complete_request has been sent, assume jupyter-console is running the kernel,
@@ -375,11 +374,12 @@ If[
 										"",
 										If[
 											Length[totalResult["EvaluationResult"]] > 1,
+											(* If there are multiple results, display it line by line *)
 											Table[
-													toTeX[totalResult["EvaluationResult"][[outIndex]]]
-												,
+												toTeX[totalResult["EvaluationResult"][[outIndex]]],
 												{outIndex, 1, Length[totalResult["EvaluationResult"]]}
 											],
+											(* Otherwise for single result, display the first one *)
 											StringJoin[
 												If[
 													Length[totalResult["EvaluationResult"]] == 0,
